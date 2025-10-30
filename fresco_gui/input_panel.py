@@ -1,27 +1,38 @@
 """
-Input panel with text editor for FRESCO input files
+Input panel with text editor and form-based input for FRESCO input files
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout, QPushButton
+    QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout, QPushButton, QTabWidget
 )
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 
+from form_input_panel import FormInputPanel
+
 
 class InputPanel(QWidget):
-    """Panel containing input file editor"""
+    """Panel containing input file editor with tabs for text and form input"""
 
     def __init__(self):
         super().__init__()
         self.init_ui()
 
     def init_ui(self):
-        """Initialize the UI with text editor"""
+        """Initialize the UI with tabs for text editor and form builder"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # Header
+        # Create tab widget
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+
+        # Tab 1: Text Editor (original functionality)
+        text_editor_widget = QWidget()
+        text_layout = QVBoxLayout(text_editor_widget)
+        text_layout.setContentsMargins(10, 10, 10, 10)
+
+        # Header for text editor
         header_layout = QHBoxLayout()
         header_label = QLabel("FRESCO Input File Editor")
         header_label.setStyleSheet("font-size: 14px; font-weight: bold;")
@@ -33,7 +44,7 @@ class InputPanel(QWidget):
         help_btn.clicked.connect(self.show_example)
         header_layout.addWidget(help_btn)
 
-        layout.addLayout(header_layout)
+        text_layout.addLayout(header_layout)
 
         # Text editor for input file
         self.text_edit = QTextEdit()
@@ -47,13 +58,24 @@ class InputPanel(QWidget):
             font = QFont("Courier New", 11)
         self.text_edit.setFont(font)
 
-        layout.addWidget(self.text_edit)
+        text_layout.addWidget(self.text_edit)
 
-        # Footer with hints
+        # Footer with hints for text editor
         footer = QLabel("Tip: Use File → Open to load existing input files, or File → Save to save your changes.")
         footer.setStyleSheet("color: #6c757d; font-size: 11px; font-style: italic;")
         footer.setWordWrap(True)
-        layout.addWidget(footer)
+        text_layout.addWidget(footer)
+
+        # Tab 2: Form Builder (new graphical interface)
+        self.form_panel = FormInputPanel()
+        # Connect form generation signal to update text editor
+        self.form_panel.input_generated.connect(self.set_input_text)
+
+        # Add tabs
+        self.tabs.addTab(text_editor_widget, "Text Editor")
+        self.tabs.addTab(self.form_panel, "Form Builder")
+
+        layout.addWidget(self.tabs)
 
     def get_input_text(self):
         """Get the current input text"""
