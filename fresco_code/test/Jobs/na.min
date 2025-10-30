@@ -1,0 +1,11 @@
+na-all.search
+q
+plot search-na-init.plot
+min
+set strat 2
+migrad
+end
+show
+plot search-na-fit.plot
+q
+exit
