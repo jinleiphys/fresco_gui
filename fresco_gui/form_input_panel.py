@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt, Signal
 
 from advanced_parameters_widget import AdvancedParametersWidget
 from pot_widget import PotentialManagerWidget
+from parameter_manager import ParameterManager
 
 
 class ElasticScatteringForm(QWidget):
@@ -18,7 +19,29 @@ class ElasticScatteringForm(QWidget):
 
     def __init__(self):
         super().__init__()
+        # Create parameter manager for elastic scattering
+        self.param_manager = ParameterManager(calculation_type="elastic")
         self.init_ui()
+
+    def update_from_input_file(self, input_text: str):
+        """
+        Update form and parameter categorization based on loaded input file
+
+        Args:
+            input_text: Content of the loaded FRESCO input file
+        """
+        from parameter_manager import parse_fresco_input_parameters
+
+        # Parse parameters from the input file
+        file_params = parse_fresco_input_parameters(input_text)
+
+        # Update parameter manager
+        self.param_manager.update_from_input_file(file_params)
+
+        # Refresh the advanced parameters widget to reflect new categorization
+        self.advanced_params.refresh()
+
+        print(f"[ElasticForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
 
     def init_ui(self):
         """Initialize the elastic scattering form"""
@@ -59,8 +82,11 @@ class ElasticScatteringForm(QWidget):
         # General Parameters
         general_group = QGroupBox("General FRESCO Parameters")
         general_layout = QFormLayout()
+        general_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        general_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.header = QLineEdit("Alpha + 12C elastic scattering at 30 MeV")
+        self.header.setAlignment(Qt.AlignLeft)
         general_layout.addRow("Header:", self.header)
 
         self.hcm = QDoubleSpinBox()
@@ -168,8 +194,8 @@ class ElasticScatteringForm(QWidget):
         self.pot_manager = PotentialManagerWidget()
         main_layout.addWidget(self.pot_manager)
 
-        # Advanced FRESCO Parameters
-        self.advanced_params = AdvancedParametersWidget()
+        # Advanced FRESCO Parameters (with parameter manager)
+        self.advanced_params = AdvancedParametersWidget(parameter_manager=self.param_manager)
         main_layout.addWidget(self.advanced_params)
 
         main_layout.addStretch()
@@ -262,7 +288,29 @@ class InelasticScatteringForm(QWidget):
 
     def __init__(self):
         super().__init__()
+        # Create parameter manager for inelastic scattering
+        self.param_manager = ParameterManager(calculation_type="inelastic")
         self.init_ui()
+
+    def update_from_input_file(self, input_text: str):
+        """
+        Update form and parameter categorization based on loaded input file
+
+        Args:
+            input_text: Content of the loaded FRESCO input file
+        """
+        from parameter_manager import parse_fresco_input_parameters
+
+        # Parse parameters from the input file
+        file_params = parse_fresco_input_parameters(input_text)
+
+        # Update parameter manager
+        self.param_manager.update_from_input_file(file_params)
+
+        # Refresh the advanced parameters widget to reflect new categorization
+        self.advanced_params.refresh()
+
+        print(f"[InelasticForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
 
     def init_ui(self):
         """Initialize the inelastic scattering form"""
@@ -307,8 +355,11 @@ class InelasticScatteringForm(QWidget):
         # General Parameters
         general_group = QGroupBox("General FRESCO Parameters")
         general_layout = QFormLayout()
+        general_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        general_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.header = QLineEdit("Alpha + 12C inelastic to 2+ state")
+        self.header.setAlignment(Qt.AlignLeft)
         general_layout.addRow("Header:", self.header)
 
         self.hcm = QDoubleSpinBox()
@@ -433,8 +484,8 @@ class InelasticScatteringForm(QWidget):
         self.pot_manager = PotentialManagerWidget()
         main_layout.addWidget(self.pot_manager)
 
-        # Advanced FRESCO Parameters
-        self.advanced_params = AdvancedParametersWidget()
+        # Advanced FRESCO Parameters (with parameter manager)
+        self.advanced_params = AdvancedParametersWidget(parameter_manager=self.param_manager)
         main_layout.addWidget(self.advanced_params)
 
         main_layout.addStretch()
@@ -573,7 +624,29 @@ class TransferReactionForm(QWidget):
 
     def __init__(self):
         super().__init__()
+        # Create parameter manager for transfer reactions
+        self.param_manager = ParameterManager(calculation_type="transfer")
         self.init_ui()
+
+    def update_from_input_file(self, input_text: str):
+        """
+        Update form and parameter categorization based on loaded input file
+
+        Args:
+            input_text: Content of the loaded FRESCO input file
+        """
+        from parameter_manager import parse_fresco_input_parameters
+
+        # Parse parameters from the input file
+        file_params = parse_fresco_input_parameters(input_text)
+
+        # Update parameter manager
+        self.param_manager.update_from_input_file(file_params)
+
+        # Refresh the advanced parameters widget to reflect new categorization
+        self.advanced_params.refresh()
+
+        print(f"[TransferForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
 
     def init_ui(self):
         """Initialize the transfer reaction form"""
@@ -618,8 +691,11 @@ class TransferReactionForm(QWidget):
         # General Parameters
         general_group = QGroupBox("General FRESCO Parameters")
         general_layout = QFormLayout()
+        general_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        general_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.header = QLineEdit("Deuteron + 40Ca -> proton + 41Ca (d,p) reaction")
+        self.header.setAlignment(Qt.AlignLeft)
         general_layout.addRow("Header:", self.header)
 
         self.hcm = QDoubleSpinBox()
@@ -792,8 +868,8 @@ class TransferReactionForm(QWidget):
         self.pot_manager = PotentialManagerWidget()
         main_layout.addWidget(self.pot_manager)
 
-        # Advanced FRESCO Parameters
-        self.advanced_params = AdvancedParametersWidget()
+        # Advanced FRESCO Parameters (with parameter manager)
+        self.advanced_params = AdvancedParametersWidget(parameter_manager=self.param_manager)
         main_layout.addWidget(self.advanced_params)
 
         main_layout.addStretch()
@@ -1060,3 +1136,42 @@ class FormInputPanel(QWidget):
             return self.transfer_form.generate_input()
         else:
             return ""
+
+    def update_from_loaded_file(self, input_text: str):
+        """
+        Update the current form's parameter categorization when a file is loaded
+
+        This is called when the user loads a file in the Text Editor tab,
+        ensuring the Form Builder tab reflects the parameters in the loaded file.
+        Also automatically detects and switches to the appropriate calculation type.
+
+        Args:
+            input_text: Content of the loaded FRESCO input file
+        """
+        from parameter_manager import detect_calculation_type
+
+        # Auto-detect calculation type from input file
+        calc_type = detect_calculation_type(input_text)
+        print(f"[FormInputPanel] Detected calculation type: {calc_type}")
+
+        # Map calculation type to tab index
+        type_to_index = {
+            "elastic": 0,
+            "inelastic": 1,
+            "transfer": 2,
+            "default": 0  # Default to elastic
+        }
+
+        # Switch to the appropriate tab
+        target_index = type_to_index.get(calc_type, 0)
+        self.calc_tabs.setCurrentIndex(target_index)
+
+        # Update the corresponding form
+        if target_index == 0:  # Elastic
+            self.elastic_form.update_from_input_file(input_text)
+        elif target_index == 1:  # Inelastic
+            self.inelastic_form.update_from_input_file(input_text)
+        elif target_index == 2:  # Transfer
+            self.transfer_form.update_from_input_file(input_text)
+
+        print(f"[FormInputPanel] Switched to {calc_type} tab and updated parameters")

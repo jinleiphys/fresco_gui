@@ -31,10 +31,32 @@ class FrescoNamelist:
     Organized by categories for easy management
     """
 
-    # Basic parameters that appear in most calculations
+    # Basic parameters that appear in most calculations (deprecated, use DEFAULT_GENERAL_PARAMS instead)
     BASIC_PARAMETERS = [
         "hcm", "rmatch", "jtmax", "absend", "thmax", "thinc", "elab", "iter"
     ]
+
+    # Default General parameters for different calculation types
+    DEFAULT_GENERAL_PARAMS = {
+        "elastic": [
+            "hcm", "rmatch", "jtmax", "absend", "thmin", "thmax", "thinc",
+            "elab", "iter", "chans", "smats", "xstabl"
+        ],
+        "inelastic": [
+            "hcm", "rmatch", "jtmax", "absend", "thmin", "thmax", "thinc",
+            "elab", "iter", "chans", "smats", "xstabl", "rasym", "accrcy",
+            "jtmin", "jbord"
+        ],
+        "transfer": [
+            "hcm", "rmatch", "jtmax", "absend", "thmin", "thmax", "thinc",
+            "elab", "iter", "chans", "smats", "xstabl", "nnu", "rintp",
+            "iblock"
+        ],
+        "default": [  # Fallback for any other calculation type
+            "hcm", "rmatch", "jtmax", "absend", "thmin", "thmax", "thinc",
+            "elab", "iter", "chans", "smats", "xstabl"
+        ]
+    }
 
     def __init__(self):
         self.parameters = self._init_parameters()

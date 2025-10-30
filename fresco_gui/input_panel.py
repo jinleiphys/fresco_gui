@@ -91,6 +91,9 @@ class InputPanel(QWidget):
             content = f.read()
         self.set_input_text(content)
 
+        # Notify form builder to update parameter categorization
+        self.form_panel.update_from_loaded_file(content)
+
     def save_to_file(self, file_path):
         """Save input to file"""
         content = self.get_input_text()

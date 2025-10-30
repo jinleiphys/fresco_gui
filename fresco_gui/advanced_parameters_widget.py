@@ -17,14 +17,24 @@ from fresco_namelist import FRESCO_NAMELIST
 class AdvancedParametersWidget(QWidget):
     """
     Collapsible widget for advanced FRESCO parameters
-    Can be used in any calculation type form
+    Supports dynamic parameter categorization via ParameterManager
     """
 
     parameters_changed = Signal()  # Emitted when any parameter changes
 
-    def __init__(self, parent=None):
+    def __init__(self, parameter_manager=None, parent=None):
+        """
+        Initialize the widget
+
+        Args:
+            parameter_manager: ParameterManager instance for dynamic categorization (optional)
+            parent: Parent widget
+        """
         super().__init__(parent)
+        self.parameter_manager = parameter_manager
         self.parameter_widgets = {}  # Store widgets for each parameter
+        self.content_widget = None  # Store reference to content widget for refreshing
+        self.tabs = None  # Store reference to tabs
         self.init_ui()
 
     def init_ui(self):
@@ -62,8 +72,8 @@ class AdvancedParametersWidget(QWidget):
         """)
 
         # Content widget (hidden when collapsed)
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
+        self.content_widget = QWidget()
+        content_layout = QVBoxLayout(self.content_widget)
 
         # Info label
         info_label = QLabel(
@@ -74,17 +84,18 @@ class AdvancedParametersWidget(QWidget):
         info_label.setWordWrap(True)
         content_layout.addWidget(info_label)
 
+        # Count label showing number of advanced parameters
+        self.count_label = QLabel()
+        self.count_label.setStyleSheet("color: #666; font-size: 10px;")
+        content_layout.addWidget(self.count_label)
+
         # Create tabbed sections for different parameter categories
         from PySide6.QtWidgets import QTabWidget
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
 
-        # Create tabs for each category
-        for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
-            params = FRESCO_NAMELIST.get_parameters_by_category(cat_key)
-            if params:
-                tab_widget = self._create_category_widget(params)
-                self.tabs.addTab(tab_widget, f"{cat_info['icon']} {cat_info['title']}")
+        # Build tabs based on parameter manager if available
+        self._rebuild_tabs()
 
         content_layout.addWidget(self.tabs)
 
@@ -117,26 +128,94 @@ class AdvancedParametersWidget(QWidget):
         self.group_box.setLayout(group_layout)
 
         # Connect collapse/expand
-        self.group_box.toggled.connect(lambda checked: content_widget.setVisible(checked))
-        content_widget.setVisible(False)  # Start collapsed
+        self.group_box.toggled.connect(lambda checked: self.content_widget.setVisible(checked))
+        self.content_widget.setVisible(False)  # Start collapsed
 
         layout.addWidget(self.group_box)
 
+    def _rebuild_tabs(self):
+        """Rebuild tabs based on current parameter categorization"""
+        # Clear existing tabs
+        while self.tabs.count() > 0:
+            self.tabs.removeTab(0)
+
+        # Clear parameter widgets dict (will be repopulated)
+        self.parameter_widgets.clear()
+
+        # Get parameters to display
+        if self.parameter_manager:
+            # Use dynamic categorization
+            params_by_category = self.parameter_manager.get_advanced_parameters_by_category()
+            advanced_param_names = set(self.parameter_manager.get_advanced_parameters())
+
+            # Create tabs only for categories that have advanced parameters
+            for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
+                if cat_key in params_by_category and params_by_category[cat_key]:
+                    # Get parameter objects for these names
+                    params = [FRESCO_NAMELIST.get_parameter(name)
+                             for name in params_by_category[cat_key]
+                             if FRESCO_NAMELIST.get_parameter(name)]
+                    if params:
+                        tab_widget = self._create_category_widget(params)
+                        self.tabs.addTab(tab_widget, f"{cat_info['icon']} {cat_info['title']}")
+
+            # Update count label
+            advanced_count = len(advanced_param_names)
+            general_count = len(self.parameter_manager.get_general_parameters())
+            total_count = advanced_count + general_count
+            self.count_label.setText(
+                f"Advanced parameters: {advanced_count} | "
+                f"General parameters: {general_count} | "
+                f"Total: {total_count}"
+            )
+        else:
+            # Fallback: show all non-basic parameters (old behavior)
+            for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
+                params = FRESCO_NAMELIST.get_parameters_by_category(cat_key)
+                if params:
+                    # Filter out BASIC_PARAMETERS
+                    filtered_params = [p for p in params
+                                     if p.name not in FRESCO_NAMELIST.BASIC_PARAMETERS]
+                    if filtered_params:
+                        tab_widget = self._create_category_widget(filtered_params)
+                        self.tabs.addTab(tab_widget, f"{cat_info['icon']} {cat_info['title']}")
+
+            self.count_label.setText("Using static parameter categorization")
+
+    def refresh(self):
+        """Refresh the widget to reflect current parameter categorization"""
+        self._rebuild_tabs()
+
+    def set_parameter_manager(self, parameter_manager):
+        """
+        Set or update the parameter manager
+
+        Args:
+            parameter_manager: ParameterManager instance
+        """
+        self.parameter_manager = parameter_manager
+        self.refresh()
+
     def _create_category_widget(self, parameters):
-        """Create widget for a parameter category"""
+        """Create widget for a parameter category with two-column layout"""
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
 
         widget = QWidget()
-        form_layout = QFormLayout(widget)
-        form_layout.setSpacing(10)
+
+        # Use QGridLayout for two-column layout
+        from PySide6.QtWidgets import QGridLayout
+        grid_layout = QGridLayout(widget)
+        grid_layout.setSpacing(10)
+        grid_layout.setColumnStretch(1, 1)  # Make input widgets stretch
+        grid_layout.setColumnStretch(3, 1)  # Make input widgets stretch
+
+        row = 0
+        col = 0
 
         for param in parameters:
-            # Skip basic parameters (they're in the main form)
-            if param.name in FRESCO_NAMELIST.BASIC_PARAMETERS:
-                continue
-
+            # All filtering is now handled by parameter_manager
             # Create label with tooltip
             label = QLabel(param.label + ":")
             label.setToolTip(param.tooltip)
@@ -202,7 +281,19 @@ class AdvancedParametersWidget(QWidget):
             # Store widget for later retrieval
             self.parameter_widgets[param.name] = widget_input
 
-            form_layout.addRow(label, widget_input)
+            # Add to grid layout in two-column format
+            # Column layout: [Label1][Input1]  [Label2][Input2]
+            grid_layout.addWidget(label, row, col * 2)
+            grid_layout.addWidget(widget_input, row, col * 2 + 1)
+
+            # Move to next position
+            col += 1
+            if col >= 2:  # Two columns
+                col = 0
+                row += 1
+
+        # Add stretch at the bottom to push everything up
+        grid_layout.setRowStretch(row + 1, 1)
 
         scroll.setWidget(widget)
         return scroll
