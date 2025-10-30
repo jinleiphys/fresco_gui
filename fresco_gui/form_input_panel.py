@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 
 from advanced_parameters_widget import AdvancedParametersWidget
+from pot_widget import PotentialManagerWidget
 
 
 class ElasticScatteringForm(QWidget):
@@ -163,58 +164,9 @@ class ElasticScatteringForm(QWidget):
         targ_group.setLayout(targ_layout)
         main_layout.addWidget(targ_group)
 
-        # Optical Potential Parameters
-        pot_group = QGroupBox("Optical Potential Parameters")
-        pot_layout = QFormLayout()
-
-        pot_layout.addRow(QLabel("Real Potential (Woods-Saxon):"))
-
-        self.pot_v = QDoubleSpinBox()
-        self.pot_v.setRange(-500.0, 500.0)
-        self.pot_v.setValue(50.0)
-        pot_layout.addRow("  Depth V (MeV):", self.pot_v)
-
-        self.pot_r = QDoubleSpinBox()
-        self.pot_r.setRange(0.1, 5.0)
-        self.pot_r.setDecimals(2)
-        self.pot_r.setValue(1.2)
-        pot_layout.addRow("  Radius r0 (fm):", self.pot_r)
-
-        self.pot_a = QDoubleSpinBox()
-        self.pot_a.setRange(0.1, 2.0)
-        self.pot_a.setDecimals(2)
-        self.pot_a.setValue(0.65)
-        pot_layout.addRow("  Diffuseness a (fm):", self.pot_a)
-
-        pot_layout.addRow(QLabel("\nImaginary Potential (Woods-Saxon):"))
-
-        self.pot_w = QDoubleSpinBox()
-        self.pot_w.setRange(-500.0, 500.0)
-        self.pot_w.setValue(10.0)
-        pot_layout.addRow("  Depth W (MeV):", self.pot_w)
-
-        self.pot_rw = QDoubleSpinBox()
-        self.pot_rw.setRange(0.1, 5.0)
-        self.pot_rw.setDecimals(2)
-        self.pot_rw.setValue(1.2)
-        pot_layout.addRow("  Radius r0W (fm):", self.pot_rw)
-
-        self.pot_aw = QDoubleSpinBox()
-        self.pot_aw.setRange(0.1, 2.0)
-        self.pot_aw.setDecimals(2)
-        self.pot_aw.setValue(0.65)
-        pot_layout.addRow("  Diffuseness aW (fm):", self.pot_aw)
-
-        pot_layout.addRow(QLabel("\nCoulomb:"))
-
-        self.pot_rc = QDoubleSpinBox()
-        self.pot_rc.setRange(0.1, 5.0)
-        self.pot_rc.setDecimals(2)
-        self.pot_rc.setValue(1.3)
-        pot_layout.addRow("  Coulomb radius rc (fm):", self.pot_rc)
-
-        pot_group.setLayout(pot_layout)
-        main_layout.addWidget(pot_group)
+        # Optical Potentials Manager
+        self.pot_manager = PotentialManagerWidget()
+        main_layout.addWidget(self.pot_manager)
 
         # Advanced FRESCO Parameters
         self.advanced_params = AdvancedParametersWidget()
@@ -250,13 +202,8 @@ class ElasticScatteringForm(QWidget):
         self.targ_charge.setValue(6.0)
         self.targ_spin.setValue(0.0)
 
-        self.pot_v.setValue(50.0)
-        self.pot_r.setValue(1.2)
-        self.pot_a.setValue(0.65)
-        self.pot_w.setValue(10.0)
-        self.pot_rw.setValue(1.2)
-        self.pot_aw.setValue(0.65)
-        self.pot_rc.setValue(1.3)
+        # Reset potentials to default (Coulomb + Volume)
+        self.pot_manager.reset_potentials()
 
     def generate_input(self):
         """Generate FRESCO input text from form values"""
@@ -274,6 +221,9 @@ class ElasticScatteringForm(QWidget):
 
         # Generate &FRESCO namelist with advanced parameters
         fresco_namelist = self.advanced_params.generate_namelist_text(basic_params)
+
+        # Generate &POT namelists from potential manager
+        pot_namelists = self.pot_manager.generate_pot_namelists()
 
         # Build complete input file
         input_text = f"""! {self.header.text()}
@@ -302,38 +252,7 @@ bandt=1
 et=0.0
 /
 
-&POT
-kp=1
-type=0
-p1=0.0
-p2=0.0
-p3=0.0
-ap=1.0
-at=1.0
-rc={self.pot_rc.value()}
-/
-
-&POT
-kp=1
-type=1
-p1={self.pot_v.value()}
-p2={self.pot_r.value()}
-p3={self.pot_a.value()}
-ap=1.0
-at=1.0
-rc={self.pot_rc.value()}
-/
-
-&POT
-kp=1
-type=2
-p1={self.pot_w.value()}
-p2={self.pot_rw.value()}
-p3={self.pot_aw.value()}
-ap=1.0
-at=1.0
-rc={self.pot_rc.value()}
-/
+{pot_namelists}
 """
         return input_text
 
@@ -510,34 +429,9 @@ class InelasticScatteringForm(QWidget):
         deform_group.setLayout(deform_layout)
         main_layout.addWidget(deform_group)
 
-        # Optical Potentials (simplified)
-        pot_group = QGroupBox("Optical Potential (Ground State)")
-        pot_layout = QFormLayout()
-
-        self.pot_v = QDoubleSpinBox()
-        self.pot_v.setRange(-500.0, 500.0)
-        self.pot_v.setValue(100.0)
-        pot_layout.addRow("Real depth V (MeV):", self.pot_v)
-
-        self.pot_r = QDoubleSpinBox()
-        self.pot_r.setRange(0.1, 5.0)
-        self.pot_r.setDecimals(2)
-        self.pot_r.setValue(1.2)
-        pot_layout.addRow("Radius r0 (fm):", self.pot_r)
-
-        self.pot_a = QDoubleSpinBox()
-        self.pot_a.setRange(0.1, 2.0)
-        self.pot_a.setDecimals(2)
-        self.pot_a.setValue(0.65)
-        pot_layout.addRow("Diffuseness a (fm):", self.pot_a)
-
-        self.pot_w = QDoubleSpinBox()
-        self.pot_w.setRange(-500.0, 500.0)
-        self.pot_w.setValue(20.0)
-        pot_layout.addRow("Imaginary depth W (MeV):", self.pot_w)
-
-        pot_group.setLayout(pot_layout)
-        main_layout.addWidget(pot_group)
+        # Optical Potentials Manager
+        self.pot_manager = PotentialManagerWidget()
+        main_layout.addWidget(self.pot_manager)
 
         # Advanced FRESCO Parameters
         self.advanced_params = AdvancedParametersWidget()
@@ -576,10 +470,8 @@ class InelasticScatteringForm(QWidget):
         self.beta.setValue(0.5)
         self.deform_radius.setValue(1.2)
 
-        self.pot_v.setValue(100.0)
-        self.pot_r.setValue(1.2)
-        self.pot_a.setValue(0.65)
-        self.pot_w.setValue(20.0)
+        # Reset potentials to default
+        self.pot_manager.reset_potentials()
 
     def generate_input(self):
         """Generate FRESCO input text for inelastic scattering"""
@@ -598,6 +490,9 @@ class InelasticScatteringForm(QWidget):
 
         # Generate &FRESCO namelist with advanced parameters
         fresco_namelist = self.advanced_params.generate_namelist_text(basic_params)
+
+        # Generate &POT namelists from potential manager
+        pot_namelists = self.pot_manager.generate_pot_namelists()
 
         # Build complete input file
         input_text = f"""! {self.header.text()}
@@ -649,39 +544,7 @@ bandt=2
 et={self.exc_energy.value()}
 /
 
-! Optical potential for ground state
-&POT
-kp=1
-type=1
-p1={self.pot_v.value()}
-p2={self.pot_r.value()}
-p3={self.pot_a.value()}
-/
-
-&POT
-kp=1
-type=2
-p1={self.pot_w.value()}
-p2={self.pot_r.value()}
-p3={self.pot_a.value()}
-/
-
-! Optical potential for excited state (same form)
-&POT
-kp=2
-type=1
-p1={self.pot_v.value()}
-p2={self.pot_r.value()}
-p3={self.pot_a.value()}
-/
-
-&POT
-kp=2
-type=2
-p1={self.pot_w.value()}
-p2={self.pot_r.value()}
-p3={self.pot_a.value()}
-/
+{pot_namelists}
 
 ! Coupling potential (deformation)
 &POT
@@ -689,7 +552,7 @@ kp=3
 type=8
 p1={self.beta.value()}
 p2={self.deform_radius.value()}
-p3={self.pot_a.value()}
+p3=0.65
 /
 
 ! Coupling between ground and excited state
@@ -925,36 +788,9 @@ class TransferReactionForm(QWidget):
         transfer_group.setLayout(transfer_layout)
         main_layout.addWidget(transfer_group)
 
-        # Optical Potentials (simplified)
-        pot_group = QGroupBox("Optical Potential Parameters")
-        pot_layout = QFormLayout()
-
-        pot_layout.addRow(QLabel("Entrance channel (a+A):"))
-
-        self.ent_v = QDoubleSpinBox()
-        self.ent_v.setRange(-500.0, 500.0)
-        self.ent_v.setValue(80.0)
-        pot_layout.addRow("  Real depth V (MeV):", self.ent_v)
-
-        self.ent_w = QDoubleSpinBox()
-        self.ent_w.setRange(-500.0, 500.0)
-        self.ent_w.setValue(10.0)
-        pot_layout.addRow("  Imag depth W (MeV):", self.ent_w)
-
-        pot_layout.addRow(QLabel("\nExit channel (b+B):"))
-
-        self.exit_v = QDoubleSpinBox()
-        self.exit_v.setRange(-500.0, 500.0)
-        self.exit_v.setValue(60.0)
-        pot_layout.addRow("  Real depth V (MeV):", self.exit_v)
-
-        self.exit_w = QDoubleSpinBox()
-        self.exit_w.setRange(-500.0, 500.0)
-        self.exit_w.setValue(8.0)
-        pot_layout.addRow("  Imag depth W (MeV):", self.exit_w)
-
-        pot_group.setLayout(pot_layout)
-        main_layout.addWidget(pot_group)
+        # Optical Potentials Manager
+        self.pot_manager = PotentialManagerWidget()
+        main_layout.addWidget(self.pot_manager)
 
         # Advanced FRESCO Parameters
         self.advanced_params = AdvancedParametersWidget()
@@ -1004,11 +840,8 @@ class TransferReactionForm(QWidget):
         self.trans_nodes.setValue(0)
         self.binding_energy.setValue(2.224)
 
-        # Potentials
-        self.ent_v.setValue(80.0)
-        self.ent_w.setValue(10.0)
-        self.exit_v.setValue(60.0)
-        self.exit_w.setValue(8.0)
+        # Reset potentials to default
+        self.pot_manager.reset_potentials()
 
     def generate_input(self):
         """Generate FRESCO input text for transfer reaction"""
@@ -1028,6 +861,9 @@ class TransferReactionForm(QWidget):
 
         # Generate &FRESCO namelist with advanced parameters
         fresco_namelist = self.advanced_params.generate_namelist_text(basic_params)
+
+        # Generate &POT namelists from potential manager
+        pot_namelists = self.pot_manager.generate_pot_namelists()
 
         # Build complete input file
         input_text = f"""! {self.header.text()}
@@ -1080,39 +916,7 @@ bandt=2
 et=0.0
 /
 
-! Optical potential - entrance channel
-&POT
-kp=1
-type=1
-p1={self.ent_v.value()}
-p2=1.17
-p3=0.75
-/
-
-&POT
-kp=1
-type=2
-p1={self.ent_w.value()}
-p2=1.32
-p3=0.51
-/
-
-! Optical potential - exit channel
-&POT
-kp=2
-type=1
-p1={self.exit_v.value()}
-p2=1.25
-p3=0.65
-/
-
-&POT
-kp=2
-type=2
-p1={self.exit_w.value()}
-p2=1.25
-p3=0.47
-/
+{pot_namelists}
 
 ! Binding potential for transferred particle
 &POT
