@@ -121,21 +121,21 @@ class PotNamelist:
             "at", "Target mass (at)",
             "Target mass number A_t (or p1 for type=0). "
             "Used to calculate radius scaling: CC = A_t^(1/3) + A_p^(1/3)",
-            default=12.0, step=0.1, minimum=1.0, maximum=300.0, category="type0"
+            default=12.0, step=0.1, minimum=0.0, maximum=300.0, category="type0"
         )
 
         params["ap"] = PotParameter(
             "ap", "Projectile mass (ap)",
             "Projectile mass number A_p (or p2 for type=0). "
             "Used to calculate radius scaling: CC = A_t^(1/3) + A_p^(1/3)",
-            default=4.0, step=0.1, minimum=0.001, maximum=300.0, category="type0"
+            default=4.0, step=0.1, minimum=0.0, maximum=300.0, category="type0"
         )
 
         params["rc"] = PotParameter(
             "rc", "Coulomb radius (rc)",
             "Coulomb radius parameter r_c (p3 for type=0, in fm). "
             "Actual radius = rc * CC where CC = A_t^(1/3) + A_p^(1/3)",
-            default=1.3, step=0.01, minimum=0.1, maximum=5.0, category="type0"
+            default=1.3, step=0.01, minimum=0.0, maximum=5.0, category="type0"
         )
 
         params["ac"] = PotParameter(

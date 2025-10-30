@@ -4,7 +4,7 @@ Allows adding/removing/editing multiple potential components
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QGridLayout, QLabel,
     QPushButton, QGroupBox, QScrollArea, QDoubleSpinBox, QSpinBox,
     QLineEdit, QComboBox, QFrame
 )
@@ -30,23 +30,30 @@ class SinglePotentialWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create collapsible group box
-        self.group_box = QGroupBox(f"🔬 Potential Component #{self.pot_number}")
+        # Create collapsible group box with modern card design
+        self.group_box = QGroupBox(f"POT #{self.pot_number}")
         self.group_box.setCheckable(True)
-        self.group_box.setChecked(True)  # Expanded by default
+        self.group_box.setChecked(False)  # Collapsed by default to save space
         self.group_box.setStyleSheet("""
             QGroupBox {
-                font-weight: bold;
-                border: 2px solid #007AFF;
-                border-radius: 6px;
-                margin-top: 10px;
-                padding-top: 15px;
-                background-color: #f8f9fa;
+                font-weight: 600;
+                font-size: 13px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                margin-top: 8px;
+                padding-top: 12px;
+                background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                subcontrol-position: top left;
+                left: 12px;
+                padding: 0 8px;
+                background-color: white;
+                color: #374151;
+            }
+            QGroupBox:hover {
+                border-color: #007AFF;
             }
         """)
 
@@ -56,35 +63,55 @@ class SinglePotentialWidget(QWidget):
 
         # Header with type selector and remove button
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
 
-        type_label = QLabel("Potential Type:")
-        type_label.setStyleSheet("font-weight: normal;")
+        type_label = QLabel("Type:")
+        type_label.setStyleSheet("font-weight: 500; color: #6b7280; font-size: 12px;")
         header_layout.addWidget(type_label)
 
         self.type_combo = QComboBox()
-        self.type_combo.addItem("0: Coulomb (defines radii)", 0)
-        self.type_combo.addItem("1: Volume potential", 1)
-        self.type_combo.addItem("2: Surface potential", 2)
-        self.type_combo.addItem("3: Spin-orbit (projectile)", 3)
-        self.type_combo.addItem("4: Spin-orbit (target)", 4)
-        self.type_combo.addItem("8: Deformation", 8)
+        self.type_combo.addItem("Coulomb", 0)
+        self.type_combo.addItem("Volume", 1)
+        self.type_combo.addItem("Surface", 2)
+        self.type_combo.addItem("Spin-orbit (proj)", 3)
+        self.type_combo.addItem("Spin-orbit (targ)", 4)
+        self.type_combo.addItem("Deformation", 8)
+        self.type_combo.setStyleSheet("""
+            QComboBox {
+                padding: 4px 8px;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background-color: white;
+                font-size: 12px;
+            }
+            QComboBox:hover {
+                border-color: #007AFF;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+        """)
         self.type_combo.currentIndexChanged.connect(self.on_type_changed)
         header_layout.addWidget(self.type_combo, 1)
 
         header_layout.addStretch()
 
-        remove_btn = QPushButton("❌ Remove")
+        remove_btn = QPushButton("Remove")
         remove_btn.setStyleSheet("""
             QPushButton {
-                background-color: #FF3B30;
+                background-color: #ef4444;
                 color: white;
                 border: none;
                 border-radius: 4px;
-                padding: 4px 8px;
+                padding: 5px 12px;
                 font-size: 11px;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: #FF2D20;
+                background-color: #dc2626;
+            }
+            QPushButton:pressed {
+                background-color: #b91c1c;
             }
         """)
         remove_btn.clicked.connect(lambda: self.remove_requested.emit(self))
@@ -92,10 +119,21 @@ class SinglePotentialWidget(QWidget):
 
         content_layout.addLayout(header_layout)
 
-        # Parameters form (dynamic based on type)
-        self.params_form = QFormLayout()
-        self.params_form.setSpacing(8)
-        content_layout.addLayout(self.params_form)
+        # Add a visual separator
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        separator.setStyleSheet("background-color: #e5e7eb; max-height: 1px;")
+        content_layout.addWidget(separator)
+
+        # Parameters grid (2 columns for more compact layout)
+        self.params_grid = QGridLayout()
+        self.params_grid.setSpacing(10)
+        self.params_grid.setContentsMargins(5, 10, 5, 10)
+        content_layout.addLayout(self.params_grid)
+
+        # Keep track of row position
+        self.current_row = 0
 
         # Add to group box
         group_layout = QVBoxLayout()
@@ -113,31 +151,42 @@ class SinglePotentialWidget(QWidget):
     def on_type_changed(self):
         """Update parameter fields based on selected type"""
         # Clear existing parameter widgets
-        while self.params_form.count():
-            item = self.params_form.takeAt(0)
+        while self.params_grid.count():
+            item = self.params_grid.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         self.parameter_widgets.clear()
+        self.current_row = 0
 
         pot_type = self.type_combo.currentData()
 
         # Always add KP (partition number)
-        self.add_parameter_widget("kp", "Partition number (kp):",
+        self.add_parameter_widget("kp", "Partition (kp):",
                                    "Which partition this potential applies to", 1, 1, 20, 1)
 
         # Add SHAPE selector for type > 0
         if pot_type > 0:
             shape_combo = QComboBox()
-            shape_combo.addItem("0: Woods-Saxon", 0)
-            shape_combo.addItem("1: WS Squared", 1)
-            shape_combo.addItem("2: Gaussian", 2)
-            shape_combo.addItem("3: Yukawa", 3)
-            shape_combo.addItem("4: Exponential", 4)
-            shape_combo.addItem("-1: Fourier-Bessel", -1)
+            shape_combo.addItem("Woods-Saxon", 0)
+            shape_combo.addItem("WS Squared", 1)
+            shape_combo.addItem("Gaussian", 2)
+            shape_combo.addItem("Yukawa", 3)
+            shape_combo.addItem("Exponential", 4)
+            shape_combo.addItem("Fourier-Bessel", -1)
+            shape_combo.setStyleSheet("""
+                QComboBox {
+                    padding: 3px 6px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 4px;
+                    background-color: white;
+                    font-size: 11px;
+                }
+            """)
             self.parameter_widgets["shape"] = shape_combo
             shape_label = QLabel("Shape:")
             shape_label.setToolTip("Radial form factor shape")
-            self.params_form.addRow(shape_label, shape_combo)
+            shape_label.setStyleSheet("font-size: 11px; color: #374151;")
+            self.add_to_grid(shape_label, shape_combo)
 
         # Add parameters based on type
         if pot_type == 0:  # Coulomb
@@ -151,7 +200,15 @@ class SinglePotentialWidget(QWidget):
         elif pot_type == 8:  # Deformation
             self.add_deformation_params()
 
-    def add_parameter_widget(self, name, label, tooltip, default, minimum, maximum, step):
+    def add_to_grid(self, label, widget):
+        """Add a label-widget pair to the grid layout (2 columns)"""
+        col = (self.current_row % 2) * 2  # 0 or 2
+        row = self.current_row // 2
+        self.params_grid.addWidget(label, row, col)
+        self.params_grid.addWidget(widget, row, col + 1)
+        self.current_row += 1
+
+    def add_parameter_widget(self, name, label_text, tooltip, default, minimum, maximum, step):
         """Helper to add a numeric parameter widget"""
         if step and step < 1:
             widget = QDoubleSpinBox()
@@ -165,42 +222,54 @@ class SinglePotentialWidget(QWidget):
             widget.setSingleStep(step)
         widget.setValue(default)
         widget.setToolTip(tooltip)
+        widget.setStyleSheet("""
+            QSpinBox, QDoubleSpinBox {
+                padding: 3px 6px;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background-color: white;
+                font-size: 11px;
+            }
+            QSpinBox:focus, QDoubleSpinBox:focus {
+                border-color: #007AFF;
+            }
+        """)
 
         self.parameter_widgets[name] = widget
 
-        label_widget = QLabel(label)
+        label_widget = QLabel(label_text)
         label_widget.setToolTip(tooltip)
-        label_widget.setStyleSheet("font-weight: normal;")
-        self.params_form.addRow(label_widget, widget)
+        label_widget.setStyleSheet("font-size: 11px; color: #374151;")
+        self.add_to_grid(label_widget, widget)
 
     def add_coulomb_params(self):
         """Add TYPE=0 (Coulomb) parameters"""
-        self.add_parameter_widget("at", "Target mass At:",
-                                   "Target mass number (for radius calculation)", 12.0, 1.0, 300.0, 0.1)
-        self.add_parameter_widget("ap", "Projectile mass Ap:",
-                                   "Projectile mass number (for radius calculation)", 4.0, 0.1, 300.0, 0.1)
-        self.add_parameter_widget("rc", "Coulomb radius rc (fm):",
-                                   "Coulomb radius parameter", 1.3, 0.1, 5.0, 0.01)
-        self.add_parameter_widget("ac", "Coulomb diffuseness ac (fm):",
-                                   "Coulomb diffuseness parameter", 0.0, 0.0, 2.0, 0.01)
+        self.add_parameter_widget("at", "At:",
+                                   "Target mass number", 12.0, 0.0, 300.0, 0.1)
+        self.add_parameter_widget("ap", "Ap:",
+                                   "Projectile mass number", 4.0, 0.0, 300.0, 0.1)
+        self.add_parameter_widget("rc", "rc (fm):",
+                                   "Coulomb radius parameter", 1.3, 0.0, 5.0, 0.01)
+        self.add_parameter_widget("ac", "ac (fm):",
+                                   "Coulomb diffuseness", 0.0, 0.0, 2.0, 0.01)
 
     def add_volume_params(self):
         """Add TYPE=1 (Volume) parameters"""
         # Real part
-        self.add_parameter_widget("v", "Real depth V (MeV):",
-                                   "Depth of real potential (negative for attractive)", 50.0, -500.0, 500.0, 1.0)
-        self.add_parameter_widget("vr0", "Real radius r₀ (fm):",
-                                   "Radius parameter for real potential", 1.2, 0.1, 5.0, 0.01)
-        self.add_parameter_widget("va", "Real diffuseness a (fm):",
-                                   "Diffuseness for real potential", 0.65, 0.1, 2.0, 0.01)
+        self.add_parameter_widget("v", "V (MeV):",
+                                   "Real potential depth", 50.0, -500.0, 500.0, 1.0)
+        self.add_parameter_widget("vr0", "r0:",
+                                   "Real radius (fm)", 1.2, 0.1, 5.0, 0.01)
+        self.add_parameter_widget("va", "a (fm):",
+                                   "Real diffuseness", 0.65, 0.1, 2.0, 0.01)
 
         # Imaginary part
-        self.add_parameter_widget("w", "Imaginary depth W (MeV):",
-                                   "Depth of imaginary potential (for absorption)", 10.0, -500.0, 500.0, 1.0)
-        self.add_parameter_widget("wr0", "Imaginary radius r₀W (fm):",
-                                   "Radius parameter for imaginary potential", 1.2, 0.1, 5.0, 0.01)
-        self.add_parameter_widget("wa", "Imaginary diffuseness aW (fm):",
-                                   "Diffuseness for imaginary potential", 0.65, 0.1, 2.0, 0.01)
+        self.add_parameter_widget("w", "W (MeV):",
+                                   "Imaginary depth", 10.0, -500.0, 500.0, 1.0)
+        self.add_parameter_widget("wr0", "r0W:",
+                                   "Imaginary radius (fm)", 1.2, 0.1, 5.0, 0.01)
+        self.add_parameter_widget("wa", "aW (fm):",
+                                   "Imaginary diffuseness", 0.65, 0.1, 2.0, 0.01)
 
     def add_surface_params(self):
         """Add TYPE=2 (Surface) parameters"""
@@ -262,7 +331,109 @@ class SinglePotentialWidget(QWidget):
     def set_pot_number(self, number):
         """Update the potential number displayed"""
         self.pot_number = number
-        self.group_box.setTitle(f"🔬 Potential Component #{self.pot_number}")
+        self.group_box.setTitle(f"POT #{self.pot_number}")
+
+    def set_pot_values(self, values):
+        """
+        Set POT parameter values from a dictionary
+
+        Args:
+            values: Dictionary with keys like 'type', 'kp', 'shape', 'p1', 'p2', etc.
+        """
+        print(f"    [SinglePotWidget #{self.pot_number}] Setting values: {values}")
+
+        # Set potential type first (this determines which parameters are shown)
+        if 'type' in values:
+            pot_type = values['type']
+            for i in range(self.type_combo.count()):
+                if self.type_combo.itemData(i) == pot_type:
+                    self.type_combo.setCurrentIndex(i)
+                    print(f"      Set type = {pot_type}")
+                    break
+
+        # Map p1, p2, p3, etc. to actual parameter names based on type
+        # This mapping follows FRESCO namelist conventions
+        pot_type = values.get('type', 0)
+
+        # Default parameter mapping (for most types)
+        # p1-p6 typically map to: V, r0, a, W, r0W, aW (for volume/surface types)
+        param_mapping = {}
+
+        if pot_type == 0:  # Coulomb
+            param_mapping = {
+                'p1': 'ap',  # Projectile mass number
+                'p2': 'at',  # Target parameter
+                'p3': 'rc',  # Coulomb radius parameter
+            }
+        elif pot_type == 1:  # Volume
+            param_mapping = {
+                'p1': 'v',      # Real depth V
+                'p2': 'vr0',    # Real radius r0
+                'p3': 'va',     # Real diffuseness a
+                'p4': 'w',      # Imaginary depth W
+                'p5': 'wr0',    # Imaginary radius r0W
+                'p6': 'wa',     # Imaginary diffuseness aW
+            }
+        elif pot_type == 2:  # Surface
+            param_mapping = {
+                'p1': 'v',      # Real depth V
+                'p2': 'vr0',    # Real radius r0
+                'p3': 'va',     # Real diffuseness a
+                'p4': 'w',      # Imaginary depth W
+                'p5': 'wr0',    # Imaginary radius r0W
+                'p6': 'wa',     # Imaginary diffuseness aW
+            }
+        elif pot_type == 3:  # Spin-orbit
+            param_mapping = {
+                'p1': 'vso',    # Real S.O. strength
+                'p2': 'vsor0',  # Real S.O. radius
+                'p3': 'vsoa',   # Real S.O. diffuseness
+                'p4': 'wso',    # Imaginary S.O. strength
+                'p5': 'wsor0',  # Imaginary S.O. radius
+                'p6': 'wsoa',   # Imaginary S.O. diffuseness
+            }
+        # For other types (deformation, etc.), we don't map p1-p6
+
+        # Set parameters
+        for param_name, param_value in values.items():
+            if param_name in ['type', 'kp', 'shape']:
+                continue  # Already handled or not a parameter widget
+
+            # Try to map p1, p2, etc. to actual parameter names
+            if param_name in param_mapping:
+                actual_param = param_mapping[param_name]
+                if actual_param in self.parameter_widgets:
+                    widget = self.parameter_widgets[actual_param]
+                    try:
+                        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                            # For at and rc, allow 0 values by updating minimum if needed
+                            old_min = widget.minimum()
+                            if actual_param in ['at', 'rc', 'ap'] and param_value < widget.minimum():
+                                widget.setMinimum(0.0)
+                                print(f"        Updated minimum for {actual_param}: {old_min} -> 0.0", flush=True)
+                            widget.setValue(param_value)
+                            actual_value = widget.value()
+                            print(f"      Set {actual_param} (from {param_name}) = {param_value}, actual value = {actual_value}", flush=True)
+                    except Exception as e:
+                        print(f"      Warning: Could not set {actual_param} = {param_value}: {e}")
+            elif param_name in self.parameter_widgets:
+                # Direct parameter name (not p1, p2, etc.)
+                widget = self.parameter_widgets[param_name]
+                try:
+                    if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                        widget.setValue(param_value)
+                        print(f"      Set {param_name} = {param_value}")
+                    elif isinstance(widget, QComboBox):
+                        for i in range(widget.count()):
+                            if widget.itemData(i) == param_value:
+                                widget.setCurrentIndex(i)
+                                print(f"      Set {param_name} = {param_value}")
+                                break
+                    elif isinstance(widget, QLineEdit):
+                        widget.setText(str(param_value))
+                        print(f"      Set {param_name} = {param_value}")
+                except Exception as e:
+                    print(f"      Warning: Could not set {param_name} = {param_value}: {e}")
 
 
 class PotentialManagerWidget(QWidget):
@@ -280,22 +451,27 @@ class PotentialManagerWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Main group box
-        self.group_box = QGroupBox("⚛️ Optical Potentials")
+        # Main group box with unified style
+        self.group_box = QGroupBox("Optical Potentials")
         self.group_box.setCheckable(True)
         self.group_box.setChecked(False)  # Collapsed by default
         self.group_box.setStyleSheet("""
             QGroupBox {
-                font-weight: bold;
-                border: 2px solid #666;
+                font-weight: 600;
+                font-size: 14px;
+                border: 1px solid #d1d5db;
                 border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 8px;
+                padding: 16px;
+                background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
+                subcontrol-position: top left;
+                left: 12px;
+                padding: 0 8px;
+                background-color: white;
+                color: #374151;
             }
         """)
 
@@ -303,12 +479,11 @@ class PotentialManagerWidget(QWidget):
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
 
-        # Info label
+        # Info label with modern style
         info_label = QLabel(
-            "Add one or more potential components. Each &POT namelist defines a part of the optical potential.\n"
-            "Start with TYPE=0 (Coulomb) to define radii, then add volume, surface, or spin-orbit components."
+            "💡 Add potential components (Coulomb, Volume, Surface, Spin-orbit). Hover over parameters for details."
         )
-        info_label.setStyleSheet("color: #888; font-style: italic; font-size: 11px;")
+        info_label.setStyleSheet("color: #6b7280; font-size: 11px; padding: 8px; background-color: #f3f4f6; border-radius: 4px;")
         info_label.setWordWrap(True)
         content_layout.addWidget(info_label)
 
@@ -434,3 +609,43 @@ class PotentialManagerWidget(QWidget):
                 pot_blocks.append(pot_text)
 
         return "\n".join(pot_blocks)
+
+    def load_from_input_text(self, input_text):
+        """
+        Load POT definitions from FRESCO input file text
+
+        Args:
+            input_text: Content of FRESCO input file
+        """
+        from parameter_manager import parse_pot_namelists
+
+        print(f"  [PotentialManager] Loading POT information from input...")
+
+        # Parse all POT namelists
+        pot_list = parse_pot_namelists(input_text)
+        print(f"    Found {len(pot_list)} POT namelists")
+
+        if not pot_list:
+            print(f"    No POT namelists found, keeping defaults")
+            return
+
+        # Clear existing potentials
+        for widget in self.potential_widgets:
+            widget.deleteLater()
+        self.potential_widgets.clear()
+
+        # Create and populate new potential widgets
+        for i, pot_params in enumerate(pot_list):
+            pot_widget = SinglePotentialWidget(i + 1)
+            pot_widget.remove_requested.connect(self.remove_potential)
+            pot_widget.set_pot_values(pot_params)
+
+            self.potential_widgets.append(pot_widget)
+            self.potentials_layout.addWidget(pot_widget)
+
+        print(f"    Successfully loaded {len(pot_list)} POT components")
+
+        # Auto-expand the group box after loading
+        self.group_box.setChecked(True)
+
+        self.potentials_changed.emit()

@@ -152,7 +152,38 @@ print(f"Promoted: {summary['promoted_params']}")
 **How it works:**
 - Default state: Shows calculation-type-specific General parameters (12-16 params)
 - After loading file: Promotes file parameters to General section
-- UI refreshes automatically via `AdvancedParametersWidget.refresh()`
+- UI refreshes automatically via `AdvancedParametersWidget.refresh()` and `DynamicGeneralParametersWidget.refresh()`
+
+### Complete File Loading System
+
+The GUI now supports full parsing and loading of FRESCO input files:
+
+**Supported Components:**
+1. **FRESCO Namelist Parameters** - All parameters from &FRESCO namelist
+2. **Partition Information** - Projectile/target names, masses, charges from &PARTITION
+3. **Optical Potentials (POT)** - Multiple &POT namelists with parameter mapping
+
+**POT Parameter Mapping:**
+FRESCO uses array syntax `p(1:n)=` for potential parameters. The system maps these to named parameters based on potential type:
+- **Type 0 (Coulomb)**: p1→ap (projectile mass), p2→at (target), p3→rc (radius)
+- **Type 1 (Volume)**: p1→V, p2→r0, p3→a, p4→W, p5→r0W, p6→aW
+- **Type 2 (Surface)**: Same as Volume
+- **Type 3 (Spin-orbit)**: p1→Vso, p2→rso, p3→aso
+
+**Example:**
+```python
+# Load complete input file
+from form_input_panel import FormInputPanel
+panel = FormInputPanel()
+with open("input.in", "r") as f:
+    input_text = f.read()
+
+# Parse and populate all sections
+panel.update_from_input_file(input_text)
+# → Parameters updated in General/Advanced widgets
+# → Partition info populated
+# → POT components created and configured
+```
 
 ### Adding New Form Parameters
 
@@ -191,11 +222,41 @@ When adding new FRESCO parameters to form builders:
 2. Define parameters in `POTNamelist.PARAMETER_DEFINITIONS`
 3. Widget automatically generates UI from definitions
 
-### Theming
+### Theming and UI Design
 
 Theme system in `styles.py` provides `apply_modern_style(widget, theme="light"|"dark")`. Custom widget styles use QObjectName matching:
 - `runButton` - Green action button
 - `stopButton` - Red stop button
+
+**Modern UI Design (2024 Update):**
+The GUI uses a unified, modern design system:
+- **Color Palette**: Tailwind-inspired (#d1d5db borders, #374151 text, #007AFF accents)
+- **Card-based Layout**: All major sections (General Parameters, Advanced Parameters, Optical Potentials) use rounded card design
+- **Unified Title Style**: All GroupBox titles use consistent font (600 weight, 14px), padding (16px), and colors
+- **Accordion Behavior**: Advanced Parameters categories use mutual exclusion (only one expanded at a time)
+- **Grid Layouts**: POT parameters and Advanced Parameters use compact grid layouts for space efficiency
+- **Collapsible Sections**: All sections start collapsed to reduce visual clutter
+
+**GroupBox Standard Style:**
+```css
+QGroupBox {
+    font-weight: 600;
+    font-size: 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    margin-top: 8px;
+    padding: 16px;
+    background-color: white;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 12px;
+    padding: 0 8px;
+    background-color: white;
+    color: #374151;
+}
+```
 
 ## File Locations and Conventions
 
@@ -217,9 +278,14 @@ from parameter_manager import ParameterManager, parse_fresco_input_parameters, d
 - `parameter_manager.py` - Core dynamic parameter system
   - `ParameterManager` class: Manages General/Advanced categorization
   - `parse_fresco_input_parameters()`: Extracts parameters from &FRESCO namelist
+  - `parse_partition_namelist()`: Extracts projectile/target information from &PARTITION
+  - `parse_pot_namelists()`: Extracts optical potential definitions from &POT (supports FRESCO array syntax `p(1:n)=`)
   - `detect_calculation_type()`: Auto-detects elastic/inelastic/transfer from input structure
-- `advanced_parameters_widget.py` - UI for Advanced parameters (supports dynamic refresh)
+- `advanced_parameters_widget.py` - UI for Advanced parameters (supports dynamic refresh, accordion behavior)
+- `dynamic_general_params_widget.py` - UI for General parameters (dynamically rebuilds based on categorization)
 - `fresco_namelist.py` - Parameter definitions and DEFAULT_GENERAL_PARAMS
+- `pot_widget.py` - Dynamic optical potential management (supports multiple potential components)
+- `pot_namelist.py` - POT parameter definitions and type-specific mappings
 
 ### Output File Formats
 FRESCO produces Fortran-style output files:

@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, Signal
 from advanced_parameters_widget import AdvancedParametersWidget
 from pot_widget import PotentialManagerWidget
 from parameter_manager import ParameterManager
+from dynamic_general_params_widget import DynamicGeneralParametersWidget
 
 
 class ElasticScatteringForm(QWidget):
@@ -19,9 +20,12 @@ class ElasticScatteringForm(QWidget):
 
     def __init__(self):
         super().__init__()
+        print("[ElasticForm] __init__ called", flush=True)
         # Create parameter manager for elastic scattering
         self.param_manager = ParameterManager(calculation_type="elastic")
+        print(f"[ElasticForm] ParameterManager created, general params: {self.param_manager.get_general_parameters()}", flush=True)
         self.init_ui()
+        print("[ElasticForm] init_ui() completed", flush=True)
 
     def update_from_input_file(self, input_text: str):
         """
@@ -30,18 +34,119 @@ class ElasticScatteringForm(QWidget):
         Args:
             input_text: Content of the loaded FRESCO input file
         """
-        from parameter_manager import parse_fresco_input_parameters
+        from parameter_manager import (
+            parse_fresco_input_parameters,
+            parse_fresco_parameter_values,
+            parse_partition_namelist
+        )
+
+        print("\n" + "="*60)
+        print("[ElasticForm] Starting update_from_input_file")
+        print("="*60)
 
         # Parse parameters from the input file
         file_params = parse_fresco_input_parameters(input_text)
+        param_values = parse_fresco_parameter_values(input_text)
+        partition_info = parse_partition_namelist(input_text)
+
+        print(f"\n[ElasticForm] Parsed {len(file_params)} parameter names from file:")
+        print(f"  {sorted(file_params)}")
+        print(f"\n[ElasticForm] Parsed {len(param_values)} parameter values from file:")
+        for k, v in sorted(param_values.items()):
+            print(f"  {k} = {v}")
+        print(f"\n[ElasticForm] Parsed partition info:")
+        for k, v in partition_info.items():
+            print(f"  {k} = {v}")
 
         # Update parameter manager
+        print(f"\n[ElasticForm] Updating parameter manager...")
         self.param_manager.update_from_input_file(file_params)
 
-        # Refresh the advanced parameters widget to reflect new categorization
-        self.advanced_params.refresh()
+        # IMPORTANT: Refresh UI first (this rebuilds widgets for both general and advanced)
+        print(f"\n[ElasticForm] Refreshing general parameters widget...", flush=True)
+        try:
+            print(f"[ElasticForm] Calling general_params.refresh()...", flush=True)
+            self.general_params.refresh()
+            print(f"[ElasticForm] Returned from general_params.refresh()", flush=True)
+            print(f"[ElasticForm] General params refresh complete", flush=True)
+        except Exception as e:
+            print(f"[ElasticForm] ERROR in general_params.refresh(): {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
-        print(f"[ElasticForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
+        print(f"\n[ElasticForm] Refreshing advanced parameters widget...", flush=True)
+        try:
+            self.advanced_params.refresh()
+            print(f"[ElasticForm] Advanced params refresh complete", flush=True)
+        except Exception as e:
+            print(f"[ElasticForm] ERROR in advanced_params.refresh(): {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+
+        # THEN populate all FRESCO parameters with values
+        print(f"\n[ElasticForm] Populating all FRESCO parameters...", flush=True)
+        try:
+            for param_name, param_value in param_values.items():
+                print(f"  Processing {param_name} = {param_value}...", flush=True)
+                # Try to set in general params first, then advanced
+                if param_name in self.general_params.parameter_widgets:
+                    self.general_params.set_parameter_value(param_name, param_value)
+                else:
+                    self.advanced_params.set_parameter_value(param_name, param_value)
+            print(f"[ElasticForm] All FRESCO parameters populated", flush=True)
+        except Exception as e:
+            print(f"[ElasticForm] ERROR populating parameters: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+
+        # Populate partition information (projectile and target)
+        print(f"\n[ElasticForm] Populating partition information...", flush=True)
+        try:
+            if 'namep' in partition_info:
+                self.proj_name.setText(partition_info['namep'])
+                print(f"  Set proj_name = {partition_info['namep']}", flush=True)
+            if 'massp' in partition_info:
+                self.proj_mass.setValue(partition_info['massp'])
+                print(f"  Set proj_mass = {partition_info['massp']}", flush=True)
+            if 'zp' in partition_info:
+                self.proj_charge.setValue(partition_info['zp'])
+                print(f"  Set proj_charge = {partition_info['zp']}", flush=True)
+            if 'jp' in partition_info:
+                self.proj_spin.setValue(partition_info['jp'])
+                print(f"  Set proj_spin = {partition_info['jp']}", flush=True)
+
+            if 'namet' in partition_info:
+                self.targ_name.setText(partition_info['namet'])
+                print(f"  Set targ_name = {partition_info['namet']}", flush=True)
+            if 'masst' in partition_info:
+                self.targ_mass.setValue(partition_info['masst'])
+                print(f"  Set targ_mass = {partition_info['masst']}", flush=True)
+            if 'zt' in partition_info:
+                self.targ_charge.setValue(partition_info['zt'])
+                print(f"  Set targ_charge = {partition_info['zt']}", flush=True)
+            if 'jt' in partition_info:
+                self.targ_spin.setValue(partition_info['jt'])
+                print(f"  Set targ_spin = {partition_info['jt']}", flush=True)
+        except Exception as e:
+            print(f"[ElasticForm] ERROR populating partition: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+
+        # Update header with parsed information
+        if 'namep' in partition_info and 'namet' in partition_info:
+            header = f"{partition_info['namep']} + {partition_info['namet']} elastic scattering"
+            if 'elab' in param_values:
+                header += f" at {param_values['elab']} MeV"
+            self.header.setText(header)
+            print(f"  Set header = {header}", flush=True)
+
+        # Load POT information into potential manager
+        print(f"\n[ElasticForm] Loading POT information...", flush=True)
+        self.pot_manager.load_from_input_text(input_text)
+
+        print(f"\n[ElasticForm] Update complete. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}", flush=True)
+        print("="*60 + "\n", flush=True)
+
 
     def init_ui(self):
         """Initialize the elastic scattering form"""
@@ -79,62 +184,22 @@ class ElasticScatteringForm(QWidget):
 
         main_layout.addWidget(header_widget)
 
-        # General Parameters
-        general_group = QGroupBox("General FRESCO Parameters")
-        general_layout = QFormLayout()
-        general_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        general_layout.setLabelAlignment(Qt.AlignLeft)
+        # Header field (not a FRESCO parameter)
+        header_group = QGroupBox("Calculation Description")
+        header_layout = QFormLayout()
+        header_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        header_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.header = QLineEdit("Alpha + 12C elastic scattering at 30 MeV")
         self.header.setAlignment(Qt.AlignLeft)
-        general_layout.addRow("Header:", self.header)
+        header_layout.addRow("Header:", self.header)
 
-        self.hcm = QDoubleSpinBox()
-        self.hcm.setRange(0.001, 1.0)
-        self.hcm.setDecimals(3)
-        self.hcm.setValue(0.05)
-        self.hcm.setToolTip("Step size for integration (typical: 0.05-0.1)")
-        general_layout.addRow("Integration step (hcm):", self.hcm)
+        header_group.setLayout(header_layout)
+        main_layout.addWidget(header_group)
 
-        self.rmatch = QDoubleSpinBox()
-        self.rmatch.setRange(1.0, 200.0)
-        self.rmatch.setValue(30.0)
-        self.rmatch.setToolTip("Matching radius in fm (typical: 20-60)")
-        general_layout.addRow("Matching radius (rmatch):", self.rmatch)
-
-        self.absend = QDoubleSpinBox()
-        self.absend.setRange(0.0, 1.0)
-        self.absend.setDecimals(4)
-        self.absend.setValue(0.01)
-        general_layout.addRow("Absorption end (absend):", self.absend)
-
-        self.thmax = QDoubleSpinBox()
-        self.thmax.setRange(0.0, 180.0)
-        self.thmax.setValue(180.0)
-        general_layout.addRow("Maximum angle (thmax):", self.thmax)
-
-        self.jtmax = QSpinBox()
-        self.jtmax.setRange(1, 200)
-        self.jtmax.setValue(40)
-        general_layout.addRow("Maximum J (jtmax):", self.jtmax)
-
-        self.thinc = QDoubleSpinBox()
-        self.thinc.setRange(0.1, 10.0)
-        self.thinc.setValue(5.0)
-        general_layout.addRow("Angle increment (thinc):", self.thinc)
-
-        self.elab = QDoubleSpinBox()
-        self.elab.setRange(0.1, 1000.0)
-        self.elab.setValue(30.0)
-        general_layout.addRow("Lab energy (elab) [MeV]:", self.elab)
-
-        self.iter = QSpinBox()
-        self.iter.setRange(0, 10)
-        self.iter.setValue(1)
-        general_layout.addRow("Iterations (iter):", self.iter)
-
-        general_group.setLayout(general_layout)
-        main_layout.addWidget(general_group)
+        # Dynamic General FRESCO Parameters
+        self.general_params = DynamicGeneralParametersWidget(parameter_manager=self.param_manager)
+        main_layout.addWidget(self.general_params)
 
         # Projectile Parameters
         proj_group = QGroupBox("Projectile (Incoming Particle)")
@@ -209,14 +274,22 @@ class ElasticScatteringForm(QWidget):
     def load_preset(self):
         """Load a preset example"""
         self.header.setText("Alpha + 12C elastic scattering at 30 MeV")
-        self.hcm.setValue(0.05)
-        self.rmatch.setValue(30.0)
-        self.absend.setValue(0.01)
-        self.thmax.setValue(180.0)
-        self.jtmax.setValue(40)
-        self.thinc.setValue(5.0)
-        self.elab.setValue(30.0)
-        self.iter.setValue(1)
+
+        # Set typical values for elastic scattering
+        preset_values = {
+            'hcm': 0.05,
+            'rmatch': 30.0,
+            'absend': 0.01,
+            'thmax': 180.0,
+            'jtmax': 40,
+            'thinc': 5.0,
+            'elab': 30.0,
+            'iter': 1,
+        }
+
+        # Apply to general parameters
+        for param_name, value in preset_values.items():
+            self.general_params.set_parameter_value(param_name, value)
 
         self.proj_name.setText("alpha")
         self.proj_mass.setValue(4.0)
@@ -233,20 +306,11 @@ class ElasticScatteringForm(QWidget):
 
     def generate_input(self):
         """Generate FRESCO input text from form values"""
-        # Collect basic parameters for the &FRESCO namelist
-        basic_params = {
-            'hcm': self.hcm.value(),
-            'rmatch': self.rmatch.value(),
-            'absend': self.absend.value(),
-            'thmax': self.thmax.value(),
-            'jtmax': self.jtmax.value(),
-            'thinc': self.thinc.value(),
-            'elab': self.elab.value(),
-            'iter': self.iter.value(),
-        }
+        # Collect parameters from general parameters widget
+        general_params = self.general_params.get_parameter_values()
 
-        # Generate &FRESCO namelist with advanced parameters
-        fresco_namelist = self.advanced_params.generate_namelist_text(basic_params)
+        # Generate &FRESCO namelist with general and advanced parameters
+        fresco_namelist = self.advanced_params.generate_namelist_text(general_params)
 
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
@@ -299,18 +363,56 @@ class InelasticScatteringForm(QWidget):
         Args:
             input_text: Content of the loaded FRESCO input file
         """
-        from parameter_manager import parse_fresco_input_parameters
+        from parameter_manager import parse_fresco_input_parameters, parse_fresco_parameter_values
 
         # Parse parameters from the input file
         file_params = parse_fresco_input_parameters(input_text)
+        param_values = parse_fresco_parameter_values(input_text)
 
         # Update parameter manager
         self.param_manager.update_from_input_file(file_params)
 
-        # Refresh the advanced parameters widget to reflect new categorization
+        # IMPORTANT: Refresh UI first (this rebuilds widgets)
         self.advanced_params.refresh()
 
+        # THEN populate form fields with parameter values
+        self._populate_form_values(param_values)
+
+        # THEN populate advanced parameters (new widgets created by refresh)
+        for param_name, param_value in param_values.items():
+            self.advanced_params.set_parameter_value(param_name, param_value)
+
         print(f"[InelasticForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
+
+    def _populate_form_values(self, param_values: dict):
+        """Populate form fields with parsed parameter values"""
+        param_widget_map = {
+            'hcm': self.hcm,
+            'rmatch': self.rmatch,
+            'thmax': self.thmax,
+            'jtmax': self.jtmax,
+            'thinc': self.thinc,
+            'elab': self.elab,
+        }
+
+        print(f"  [InelasticForm._populate_form_values] Received {len(param_values)} parameters to populate")
+
+        for param_name, widget in param_widget_map.items():
+            if param_name in param_values:
+                value = param_values[param_name]
+                try:
+                    old_value = widget.value()
+                    print(f"  {param_name}: current={old_value}, new={value}, widget={widget.__class__.__name__}")
+                    widget.setValue(value)
+                    widget.update()
+                    widget.repaint()
+                    actual_value = widget.value()
+                    if actual_value == value:
+                        print(f"  ✓ {param_name} = {value} (verified)")
+                    else:
+                        print(f"  ✗ {param_name} set to {value} but reads as {actual_value}!")
+                except Exception as e:
+                    print(f"  Warning: Could not set {param_name} = {value}: {e}")
 
     def init_ui(self):
         """Initialize the inelastic scattering form"""
@@ -635,18 +737,56 @@ class TransferReactionForm(QWidget):
         Args:
             input_text: Content of the loaded FRESCO input file
         """
-        from parameter_manager import parse_fresco_input_parameters
+        from parameter_manager import parse_fresco_input_parameters, parse_fresco_parameter_values
 
         # Parse parameters from the input file
         file_params = parse_fresco_input_parameters(input_text)
+        param_values = parse_fresco_parameter_values(input_text)
 
         # Update parameter manager
         self.param_manager.update_from_input_file(file_params)
 
-        # Refresh the advanced parameters widget to reflect new categorization
+        # IMPORTANT: Refresh UI first (this rebuilds widgets)
         self.advanced_params.refresh()
 
+        # THEN populate form fields with parameter values
+        self._populate_form_values(param_values)
+
+        # THEN populate advanced parameters (new widgets created by refresh)
+        for param_name, param_value in param_values.items():
+            self.advanced_params.set_parameter_value(param_name, param_value)
+
         print(f"[TransferForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
+
+    def _populate_form_values(self, param_values: dict):
+        """Populate form fields with parsed parameter values"""
+        param_widget_map = {
+            'hcm': self.hcm,
+            'rmatch': self.rmatch,
+            'thmax': self.thmax,
+            'jtmax': self.jtmax,
+            'thinc': self.thinc,
+            'elab': self.elab,
+        }
+
+        print(f"  [TransferForm._populate_form_values] Received {len(param_values)} parameters to populate")
+
+        for param_name, widget in param_widget_map.items():
+            if param_name in param_values:
+                value = param_values[param_name]
+                try:
+                    old_value = widget.value()
+                    print(f"  {param_name}: current={old_value}, new={value}, widget={widget.__class__.__name__}")
+                    widget.setValue(value)
+                    widget.update()
+                    widget.repaint()
+                    actual_value = widget.value()
+                    if actual_value == value:
+                        print(f"  ✓ {param_name} = {value} (verified)")
+                    else:
+                        print(f"  ✗ {param_name} set to {value} but reads as {actual_value}!")
+                except Exception as e:
+                    print(f"  Warning: Could not set {param_name} = {value}: {e}")
 
     def init_ui(self):
         """Initialize the transfer reaction form"""

@@ -225,6 +225,195 @@ def parse_fresco_input_parameters(input_text: str) -> Set[str]:
     return parameters_found
 
 
+def parse_fresco_parameter_values(input_text: str) -> Dict[str, Any]:
+    """
+    Parse FRESCO input file and extract parameter values from the &FRESCO namelist
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        Dictionary of parameter names to their values
+    """
+    import re
+
+    parameter_values = {}
+
+    # Find &FRESCO namelist section (case insensitive, also handle &Fresco)
+    fresco_pattern = r'&FRESCO\s+(.*?)\s*/'
+    match = re.search(fresco_pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    if match:
+        namelist_content = match.group(1)
+
+        # Extract parameter assignments: param=value or param = value
+        # Value can be numbers, strings, or comma-separated lists
+        param_pattern = r'(\w+)\s*=\s*([^,\s]+(?:\s*,\s*[^,\s]+)*)'
+        param_matches = re.finditer(param_pattern, namelist_content)
+
+        for match in param_matches:
+            param_name = match.group(1).lower()
+            param_value_str = match.group(2).strip()
+
+            # Only process if it's a valid FRESCO parameter
+            if param_name in FRESCO_NAMELIST.parameters:
+                # Try to parse the value
+                try:
+                    # Check if it's a number (int or float)
+                    if '.' in param_value_str or 'e' in param_value_str.lower():
+                        param_value = float(param_value_str)
+                    else:
+                        param_value = int(param_value_str)
+                except ValueError:
+                    # If not a number, keep as string (remove quotes if present)
+                    param_value = param_value_str.strip("'\"")
+
+                parameter_values[param_name] = param_value
+
+    return parameter_values
+
+
+def parse_partition_namelist(input_text: str) -> dict:
+    """
+    Parse the first &PARTITION namelist to extract projectile and target information
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        Dictionary with keys: namep, massp, zp, jp, namet, masst, zt, jt
+    """
+    import re
+
+    partition_info = {}
+
+    # Find first &PARTITION namelist
+    pattern = r'&PARTITION\s+(.*?)\s*/'
+    match = re.search(pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    if match:
+        namelist_content = match.group(1)
+
+        # Extract each parameter
+        params_to_extract = {
+            'namep': str,
+            'massp': float,
+            'zp': float,
+            'jp': float,
+            'namet': str,
+            'masst': float,
+            'zt': float,
+            'jt': float,
+        }
+
+        for param_name, param_type in params_to_extract.items():
+            # Pattern to match parameter=value
+            # Handle both quoted strings and unquoted values
+            if param_type == str:
+                # For strings, match quoted values (with anything inside quotes) or unquoted values
+                param_pattern = rf'{param_name}\s*=\s*(["\'])(.*?)\1|{param_name}\s*=\s*([^\s,]+)'
+            else:
+                # For numbers, match unquoted numeric values
+                param_pattern = rf'{param_name}\s*=\s*([^\s,]+)'
+
+            param_match = re.search(param_pattern, namelist_content, re.IGNORECASE)
+
+            if param_match:
+                try:
+                    if param_type == str:
+                        # For quoted strings, group(2) has the content
+                        # For unquoted strings, group(3) has the content
+                        value_str = param_match.group(2) if param_match.group(2) is not None else param_match.group(3)
+                        if value_str:
+                            partition_info[param_name] = value_str.strip()
+                    else:
+                        value_str = param_match.group(1).strip()
+                        partition_info[param_name] = param_type(value_str)
+                except (ValueError, AttributeError) as e:
+                    print(f"Warning: Could not parse {param_name}: {e}")
+
+    return partition_info
+
+
+def parse_pot_namelists(input_text: str) -> list:
+    """
+    Parse all &POT namelists from FRESCO input file
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        List of dictionaries, each containing POT parameters
+    """
+    import re
+
+    pot_list = []
+
+    # Find all &POT namelists
+    pattern = r'&POT\s+(.*?)\s*/'
+    matches = re.findall(pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    for match in matches:
+        # Skip empty POT namelists (only whitespace)
+        if not match.strip():
+            continue
+
+        pot_params = {}
+
+        # Parse simple parameters (kp, type, shape, ap, at, rc)
+        simple_params = {
+            'kp': int,
+            'type': int,
+            'shape': int,
+            'ap': float,
+            'at': float,
+            'rc': float,
+        }
+
+        for param_name, param_type in simple_params.items():
+            param_pattern = rf'{param_name}\s*=\s*([^\s,]+)'
+            param_match = re.search(param_pattern, match, re.IGNORECASE)
+
+            if param_match:
+                value_str = param_match.group(1).strip()
+                try:
+                    pot_params[param_name] = param_type(value_str)
+                except ValueError:
+                    print(f"Warning: Could not parse POT {param_name}={value_str}")
+
+        # Parse p(1:n) array syntax: p(1:3)= 51.2614 1.2131 0.6646
+        p_array_pattern = r'p\(1:(\d+)\)\s*=\s*([\d\.\-\s]+)'
+        p_match = re.search(p_array_pattern, match, re.IGNORECASE)
+
+        if p_match:
+            num_params = int(p_match.group(1))
+            values_str = p_match.group(2).strip()
+            # Split values by whitespace
+            values = values_str.split()
+
+            # Assign to p1, p2, p3, etc.
+            for i, value_str in enumerate(values[:num_params], start=1):
+                try:
+                    pot_params[f'p{i}'] = float(value_str)
+                except ValueError:
+                    print(f"Warning: Could not parse POT p{i}={value_str}")
+        else:
+            # Also try parsing individual p1=, p2=, p3= if array syntax not found
+            for i in range(1, 7):
+                param_pattern = rf'p{i}\s*=\s*([^\s,]+)'
+                param_match = re.search(param_pattern, match, re.IGNORECASE)
+                if param_match:
+                    try:
+                        pot_params[f'p{i}'] = float(param_match.group(1).strip())
+                    except ValueError:
+                        pass
+
+        if pot_params:  # Only add if we found any parameters
+            pot_list.append(pot_params)
+
+    return pot_list
+
+
 def detect_calculation_type(input_text: str) -> str:
     """
     Automatically detect the type of FRESCO calculation from input file
@@ -237,24 +426,40 @@ def detect_calculation_type(input_text: str) -> str:
     """
     import re
 
-    # Count namelists
-    partition_count = len(re.findall(r'&PARTITION', input_text, re.IGNORECASE))
-    states_count = len(re.findall(r'&STATES', input_text, re.IGNORECASE))
-    coupling_count = len(re.findall(r'&COUPLING', input_text, re.IGNORECASE))
-    overlap_count = len(re.findall(r'&OVERLAP', input_text, re.IGNORECASE))
+    # Find all namelists with their content (not just empty markers)
+    # Pattern: &NAMELIST ... / (with content between)
+    def has_content_namelist(namelist_name, text):
+        """Check if a namelist has actual content (not just &NAME /)"""
+        pattern = rf'&{namelist_name}\s+(.*?)\s*/'
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
+        # Check if any match has non-whitespace content
+        return any(match.strip() for match in matches)
+
+    def count_content_namelists(namelist_name, text):
+        """Count namelists with actual content"""
+        pattern = rf'&{namelist_name}\s+(.*?)\s*/'
+        matches = re.findall(pattern, text, re.IGNORECASE | re.DOTALL)
+        # Count only those with non-whitespace content
+        return sum(1 for match in matches if match.strip())
+
+    # Count namelists with actual content
+    partition_count = count_content_namelists('PARTITION', input_text)
+    states_count = count_content_namelists('STATES', input_text)
+    has_coupling = has_content_namelist('COUPLING', input_text)
+    has_overlap = has_content_namelist('OVERLAP', input_text)
 
     # Detection logic
-    if overlap_count > 0:
-        # Has OVERLAP namelists → Transfer reaction
+    if has_overlap:
+        # Has non-empty OVERLAP → Transfer reaction
         return "transfer"
-    elif coupling_count > 0 and partition_count == 1:
-        # Has COUPLING but only one PARTITION → Inelastic scattering
+    elif has_coupling and partition_count == 1:
+        # Has non-empty COUPLING but only one PARTITION → Inelastic scattering
         return "inelastic"
-    elif partition_count == 1 and states_count <= 2 and coupling_count == 0:
+    elif partition_count == 1 and states_count <= 2 and not has_coupling:
         # Single PARTITION, 1-2 STATES, no COUPLING → Elastic scattering
         return "elastic"
     elif partition_count > 1:
-        # Multiple PARTITIONs without OVERLAP → could be transfer, default to transfer
+        # Multiple PARTITIONs → could be transfer
         return "transfer"
     else:
         # Unable to determine, use default

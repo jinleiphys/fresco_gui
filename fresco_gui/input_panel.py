@@ -86,13 +86,42 @@ class InputPanel(QWidget):
         self.text_edit.setPlainText(text)
 
     def load_from_file(self, file_path):
-        """Load input from file"""
+        """Load input from file and switch to Form Builder"""
+        from PySide6.QtWidgets import QMessageBox
+        import re
+
         with open(file_path, 'r') as f:
             content = f.read()
+
+        # Validate if this is a FRESCO input file
+        # Check for &FRESCO namelist or other FRESCO-specific markers
+        fresco_markers = [r'&FRESCO', r'&PARTITION', r'&STATES', r'&POT', r'&COUPLING', r'&OVERLAP']
+        is_fresco_file = any(re.search(marker, content, re.IGNORECASE) for marker in fresco_markers)
+
+        if not is_fresco_file:
+            # Show error message
+            QMessageBox.critical(
+                self,
+                "Invalid FRESCO Input File",
+                f"The file '{file_path}' does not appear to be a valid FRESCO input file.\n\n"
+                "A valid FRESCO input file should contain at least one of the following namelists:\n"
+                "  • &FRESCO\n"
+                "  • &PARTITION\n"
+                "  • &STATES\n"
+                "  • &POT\n"
+                "  • &COUPLING\n"
+                "  • &OVERLAP"
+            )
+            return
+
+        # Load content into text editor
         self.set_input_text(content)
 
         # Notify form builder to update parameter categorization
         self.form_panel.update_from_loaded_file(content)
+
+        # Automatically switch to Form Builder tab
+        self.tabs.setCurrentIndex(1)  # Index 1 is Form Builder tab
 
     def save_to_file(self, file_path):
         """Save input to file"""

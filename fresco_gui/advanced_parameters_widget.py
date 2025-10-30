@@ -34,7 +34,7 @@ class AdvancedParametersWidget(QWidget):
         self.parameter_manager = parameter_manager
         self.parameter_widgets = {}  # Store widgets for each parameter
         self.content_widget = None  # Store reference to content widget for refreshing
-        self.tabs = None  # Store reference to tabs
+        self.category_group_boxes = []  # Track all category group boxes for accordion behavior
         self.init_ui()
 
     def init_ui(self):
@@ -42,32 +42,27 @@ class AdvancedParametersWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create collapsible group box
-        self.group_box = QGroupBox("⚙️ Advanced FRESCO Parameters")
+        # Create collapsible group box with modern design
+        self.group_box = QGroupBox("Advanced Parameters")
         self.group_box.setCheckable(True)
         self.group_box.setChecked(False)  # Collapsed by default
         self.group_box.setStyleSheet("""
             QGroupBox {
-                font-weight: bold;
-                border: 2px solid #666;
+                font-weight: 600;
+                font-size: 14px;
+                border: 1px solid #d1d5db;
                 border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
+                margin-top: 8px;
+                padding: 16px;
+                background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-            QGroupBox::indicator {
-                width: 13px;
-                height: 13px;
-            }
-            QGroupBox::indicator:unchecked {
-                image: url(none);
-            }
-            QGroupBox::indicator:checked {
-                image: url(none);
+                subcontrol-position: top left;
+                left: 12px;
+                padding: 0 8px;
+                background-color: white;
+                color: #374151;
             }
         """)
 
@@ -77,44 +72,52 @@ class AdvancedParametersWidget(QWidget):
 
         # Info label
         info_label = QLabel(
-            "These parameters have sensible defaults. Only modify if you need specific behavior.\n"
-            "Hover over parameter names for detailed descriptions."
+            "💡 These parameters have sensible defaults. Hover over names for descriptions."
         )
-        info_label.setStyleSheet("color: #888; font-style: italic; font-size: 11px;")
+        info_label.setStyleSheet("color: #6b7280; font-size: 11px; padding: 8px; background-color: #f3f4f6; border-radius: 4px;")
         info_label.setWordWrap(True)
         content_layout.addWidget(info_label)
 
         # Count label showing number of advanced parameters
         self.count_label = QLabel()
-        self.count_label.setStyleSheet("color: #666; font-size: 10px;")
+        self.count_label.setStyleSheet("color: #9ca3af; font-size: 10px; padding: 4px 0;")
         content_layout.addWidget(self.count_label)
 
-        # Create tabbed sections for different parameter categories
-        from PySide6.QtWidgets import QTabWidget
-        self.tabs = QTabWidget()
-        self.tabs.setDocumentMode(True)
+        # Create scroll area for all categories (no tabs)
+        self.categories_scroll = QScrollArea()
+        self.categories_scroll.setWidgetResizable(True)
+        self.categories_scroll.setFrameShape(QScrollArea.NoFrame)
 
-        # Build tabs based on parameter manager if available
-        self._rebuild_tabs()
+        # Container for all categories
+        self.categories_container = QWidget()
+        self.categories_layout = None  # Will be set in _rebuild_categories
 
-        content_layout.addWidget(self.tabs)
+        # Build categories based on parameter manager
+        self._rebuild_categories()
+
+        self.categories_scroll.setWidget(self.categories_container)
+        content_layout.addWidget(self.categories_scroll)
 
         # Reset button
         reset_layout = QHBoxLayout()
         reset_layout.addStretch()
 
-        reset_btn = QPushButton("Reset All to Defaults")
+        reset_btn = QPushButton("Reset to Defaults")
         reset_btn.setStyleSheet("""
             QPushButton {
-                background-color: #666;
+                background-color: #6b7280;
                 color: white;
                 border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
+                border-radius: 5px;
+                padding: 6px 14px;
                 font-size: 11px;
+                font-weight: 500;
             }
             QPushButton:hover {
-                background-color: #777;
+                background-color: #4b5563;
+            }
+            QPushButton:pressed {
+                background-color: #374151;
             }
         """)
         reset_btn.clicked.connect(self.reset_to_defaults)
@@ -124,7 +127,7 @@ class AdvancedParametersWidget(QWidget):
 
         # Add content to group box
         group_layout = QVBoxLayout()
-        group_layout.addWidget(content_widget)
+        group_layout.addWidget(self.content_widget)
         self.group_box.setLayout(group_layout)
 
         # Connect collapse/expand
@@ -133,14 +136,27 @@ class AdvancedParametersWidget(QWidget):
 
         layout.addWidget(self.group_box)
 
-    def _rebuild_tabs(self):
-        """Rebuild tabs based on current parameter categorization"""
-        # Clear existing tabs
-        while self.tabs.count() > 0:
-            self.tabs.removeTab(0)
+    def _rebuild_categories(self):
+        """Rebuild categories in grid layout (3 per row)"""
+        from PySide6.QtWidgets import QGridLayout
+
+        # Clear existing layout if any
+        if self.categories_layout:
+            while self.categories_layout.count():
+                item = self.categories_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            QWidget().setLayout(self.categories_layout)  # Delete old layout
+
+        # Create new grid layout
+        self.categories_layout = QGridLayout(self.categories_container)
+        self.categories_layout.setSpacing(15)
 
         # Clear parameter widgets dict (will be repopulated)
         self.parameter_widgets.clear()
+
+        # Clear category group boxes list
+        self.category_group_boxes.clear()
 
         # Get parameters to display
         if self.parameter_manager:
@@ -148,7 +164,10 @@ class AdvancedParametersWidget(QWidget):
             params_by_category = self.parameter_manager.get_advanced_parameters_by_category()
             advanced_param_names = set(self.parameter_manager.get_advanced_parameters())
 
-            # Create tabs only for categories that have advanced parameters
+            # Create category widgets (3 per row)
+            row = 0
+            col = 0
+
             for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
                 if cat_key in params_by_category and params_by_category[cat_key]:
                     # Get parameter objects for these names
@@ -156,8 +175,14 @@ class AdvancedParametersWidget(QWidget):
                              for name in params_by_category[cat_key]
                              if FRESCO_NAMELIST.get_parameter(name)]
                     if params:
-                        tab_widget = self._create_category_widget(params)
-                        self.tabs.addTab(tab_widget, f"{cat_info['icon']} {cat_info['title']}")
+                        # Create category group box
+                        category_widget = self._create_category_column(cat_info, params)
+                        self.categories_layout.addWidget(category_widget, row, col)
+
+                        col += 1
+                        if col >= 3:  # 3 categories per row
+                            col = 0
+                            row += 1
 
             # Update count label
             advanced_count = len(advanced_param_names)
@@ -170,6 +195,9 @@ class AdvancedParametersWidget(QWidget):
             )
         else:
             # Fallback: show all non-basic parameters (old behavior)
+            row = 0
+            col = 0
+
             for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
                 params = FRESCO_NAMELIST.get_parameters_by_category(cat_key)
                 if params:
@@ -177,14 +205,43 @@ class AdvancedParametersWidget(QWidget):
                     filtered_params = [p for p in params
                                      if p.name not in FRESCO_NAMELIST.BASIC_PARAMETERS]
                     if filtered_params:
-                        tab_widget = self._create_category_widget(filtered_params)
-                        self.tabs.addTab(tab_widget, f"{cat_info['icon']} {cat_info['title']}")
+                        category_widget = self._create_category_column(cat_info, filtered_params)
+                        self.categories_layout.addWidget(category_widget, row, col)
+
+                        col += 1
+                        if col >= 3:  # 3 categories per row
+                            col = 0
+                            row += 1
 
             self.count_label.setText("Using static parameter categorization")
 
+    def _on_category_toggled(self, toggled_box, checked):
+        """
+        Handle category toggle for accordion behavior
+        When one category is expanded, collapse all others
+        """
+        # First, show/hide the content of the toggled box
+        if hasattr(toggled_box, 'content_widget'):
+            toggled_box.content_widget.setVisible(checked)
+
+        # Then, if expanding, collapse all other categories
+        if checked:
+            for group_box in self.category_group_boxes:
+                if group_box != toggled_box and group_box.isChecked():
+                    # Temporarily block signals to avoid triggering toggle chain
+                    group_box.blockSignals(True)
+                    group_box.setChecked(False)
+                    # Hide its content
+                    if hasattr(group_box, 'content_widget'):
+                        group_box.content_widget.setVisible(False)
+                    group_box.blockSignals(False)
+
     def refresh(self):
         """Refresh the widget to reflect current parameter categorization"""
-        self._rebuild_tabs()
+        print(f"  [AdvancedParams] refresh() called, rebuilding categories...")
+        self._rebuild_categories()
+        print(f"  [AdvancedParams] After refresh, have {len(self.parameter_widgets)} widgets:")
+        print(f"    {sorted(self.parameter_widgets.keys())}")
 
     def set_parameter_manager(self, parameter_manager):
         """
@@ -196,30 +253,68 @@ class AdvancedParametersWidget(QWidget):
         self.parameter_manager = parameter_manager
         self.refresh()
 
-    def _create_category_widget(self, parameters):
-        """Create widget for a parameter category with two-column layout"""
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
+    def _create_category_column(self, cat_info, parameters):
+        """Create a collapsible single-column category widget with modern card design"""
+        # Create collapsible group box for this category
+        group_box = QGroupBox(f"{cat_info['title']}")
+        group_box.setCheckable(True)
+        group_box.setChecked(False)  # Collapsed by default
+        group_box.setStyleSheet("""
+            QGroupBox {
+                font-weight: 500;
+                font-size: 12px;
+                border: 1px solid #e5e7eb;
+                border-radius: 6px;
+                margin-top: 4px;
+                padding-top: 10px;
+                background-color: white;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                left: 10px;
+                padding: 0 6px;
+                background-color: white;
+                color: #6b7280;
+            }
+            QGroupBox:hover {
+                border-color: #cbd5e1;
+            }
+            QGroupBox::indicator {
+                width: 0px;
+                height: 0px;
+            }
+        """)
 
-        widget = QWidget()
+        # Container widget for parameters (will be hidden/shown)
+        content_widget = QWidget()
 
-        # Use QGridLayout for two-column layout
-        from PySide6.QtWidgets import QGridLayout
-        grid_layout = QGridLayout(widget)
-        grid_layout.setSpacing(10)
-        grid_layout.setColumnStretch(1, 1)  # Make input widgets stretch
-        grid_layout.setColumnStretch(3, 1)  # Make input widgets stretch
+        # Single column layout for parameters
+        form_layout = QFormLayout(content_widget)
+        form_layout.setSpacing(8)
+        form_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        form_layout.setLabelAlignment(Qt.AlignLeft)
 
-        row = 0
-        col = 0
+        # Define consistent widget style
+        widget_style = """
+            QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox {
+                padding: 4px 6px;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                background-color: white;
+                font-size: 11px;
+            }
+            QSpinBox:focus, QDoubleSpinBox:focus, QLineEdit:focus, QComboBox:focus {
+                border-color: #007AFF;
+            }
+        """
 
         for param in parameters:
             # All filtering is now handled by parameter_manager
             # Create label with tooltip
             label = QLabel(param.label + ":")
             label.setToolTip(param.tooltip)
-            label.setStyleSheet("font-weight: normal;")
+            label.setStyleSheet("font-size: 11px; color: #374151;")
 
             # Create appropriate widget based on parameter type
             if param.param_type == "number":
@@ -248,6 +343,7 @@ class AdvancedParametersWidget(QWidget):
                     widget_input.setSpecialValueText("(default)")
 
                 widget_input.setToolTip(param.tooltip)
+                widget_input.setStyleSheet(widget_style)
                 widget_input.valueChanged.connect(self.parameters_changed.emit)
 
             elif param.param_type == "text":
@@ -256,6 +352,7 @@ class AdvancedParametersWidget(QWidget):
                     widget_input.setText(str(param.default))
                 widget_input.setPlaceholderText("(optional)")
                 widget_input.setToolTip(param.tooltip)
+                widget_input.setStyleSheet(widget_style)
                 widget_input.textChanged.connect(self.parameters_changed.emit)
 
             elif param.param_type == "select":
@@ -269,6 +366,7 @@ class AdvancedParametersWidget(QWidget):
                             widget_input.setCurrentIndex(i)
                             break
                 widget_input.setToolTip(param.tooltip)
+                widget_input.setStyleSheet(widget_style)
                 widget_input.currentIndexChanged.connect(self.parameters_changed.emit)
 
             else:  # checkbox
@@ -281,22 +379,29 @@ class AdvancedParametersWidget(QWidget):
             # Store widget for later retrieval
             self.parameter_widgets[param.name] = widget_input
 
-            # Add to grid layout in two-column format
-            # Column layout: [Label1][Input1]  [Label2][Input2]
-            grid_layout.addWidget(label, row, col * 2)
-            grid_layout.addWidget(widget_input, row, col * 2 + 1)
+            # Add to form layout (single column)
+            form_layout.addRow(label, widget_input)
 
-            # Move to next position
-            col += 1
-            if col >= 2:  # Two columns
-                col = 0
-                row += 1
+        # Create layout for group box and add content widget
+        group_layout = QVBoxLayout()
+        group_layout.addWidget(content_widget)
+        group_box.setLayout(group_layout)
 
-        # Add stretch at the bottom to push everything up
-        grid_layout.setRowStretch(row + 1, 1)
+        # Store content widget reference in group_box for later access
+        group_box.content_widget = content_widget
+        content_widget.setVisible(False)  # Start collapsed
 
-        scroll.setWidget(widget)
-        return scroll
+        # Add to category group boxes list for accordion behavior
+        self.category_group_boxes.append(group_box)
+
+        # Connect accordion behavior: handle both visibility and mutual exclusion
+        # Use a proper slot instead of lambda to avoid closure issues
+        def on_toggle(checked):
+            self._on_category_toggled(group_box, checked)
+
+        group_box.toggled.connect(on_toggle)
+
+        return group_box
 
     def get_parameter_values(self):
         """Get all parameter values as a dictionary"""
@@ -338,21 +443,46 @@ class AdvancedParametersWidget(QWidget):
     def set_parameter_value(self, name: str, value):
         """Set a parameter value"""
         if name not in self.parameter_widgets:
+            print(f"    [AdvancedParams] Parameter '{name}' not in widget dict (might be in general params)")
             return
 
         widget = self.parameter_widgets[name]
+        print(f"    [AdvancedParams] Setting {name} = {value} (widget type: {widget.__class__.__name__})")
 
-        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
-            widget.setValue(value)
-        elif isinstance(widget, QLineEdit):
-            widget.setText(str(value))
-        elif isinstance(widget, QComboBox):
-            for i in range(widget.count()):
-                if widget.itemData(i) == value:
-                    widget.setCurrentIndex(i)
-                    break
-        elif isinstance(widget, QCheckBox):
-            widget.setChecked(bool(value))
+        try:
+            if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                old_val = widget.value()
+                widget.setValue(value)
+                widget.update()
+                widget.repaint()
+                new_val = widget.value()
+                print(f"      {name}: {old_val} -> {new_val} (target: {value})")
+            elif isinstance(widget, QLineEdit):
+                old_val = widget.text()
+                widget.setText(str(value))
+                widget.update()
+                widget.repaint()
+                new_val = widget.text()
+                print(f"      {name}: '{old_val}' -> '{new_val}' (target: '{value}')")
+            elif isinstance(widget, QComboBox):
+                old_idx = widget.currentIndex()
+                for i in range(widget.count()):
+                    if widget.itemData(i) == value:
+                        widget.setCurrentIndex(i)
+                        widget.update()
+                        widget.repaint()
+                        break
+                new_idx = widget.currentIndex()
+                print(f"      {name}: index {old_idx} -> {new_idx}")
+            elif isinstance(widget, QCheckBox):
+                old_val = widget.isChecked()
+                widget.setChecked(bool(value))
+                widget.update()
+                widget.repaint()
+                new_val = widget.isChecked()
+                print(f"      {name}: {old_val} -> {new_val} (target: {value})")
+        except Exception as e:
+            print(f"      ERROR setting {name}: {e}")
 
     def reset_to_defaults(self):
         """Reset all parameters to their defaults"""
