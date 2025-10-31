@@ -34,7 +34,7 @@ class AdvancedParametersWidget(QWidget):
         self.parameter_manager = parameter_manager
         self.parameter_widgets = {}  # Store widgets for each parameter
         self.content_widget = None  # Store reference to content widget for refreshing
-        self.category_group_boxes = []  # Track all category group boxes for accordion behavior
+        self.category_buttons = []  # Track category buttons and content widgets
         self.init_ui()
 
     def init_ui(self):
@@ -96,7 +96,19 @@ class AdvancedParametersWidget(QWidget):
         self._rebuild_categories()
 
         self.categories_scroll.setWidget(self.categories_container)
-        content_layout.addWidget(self.categories_scroll)
+
+        # Create a horizontal layout: category list on left, content on right
+        categories_and_content = QHBoxLayout()
+        categories_and_content.addWidget(self.categories_scroll, 1)  # Category buttons
+
+        # Content display area (shared by all categories)
+        self.content_display = QWidget()
+        self.content_display_layout = QVBoxLayout(self.content_display)
+        self.content_display_layout.setContentsMargins(8, 8, 8, 8)
+
+        categories_and_content.addWidget(self.content_display, 2)  # Content area (larger)
+
+        content_layout.addLayout(categories_and_content)
 
         # Reset button
         reset_layout = QHBoxLayout()
@@ -137,9 +149,7 @@ class AdvancedParametersWidget(QWidget):
         layout.addWidget(self.group_box)
 
     def _rebuild_categories(self):
-        """Rebuild categories in grid layout (3 per row)"""
-        from PySide6.QtWidgets import QGridLayout
-
+        """Rebuild categories as vertical list of buttons with shared content area"""
         # Clear existing layout if any
         if self.categories_layout:
             while self.categories_layout.count():
@@ -148,15 +158,17 @@ class AdvancedParametersWidget(QWidget):
                     item.widget().deleteLater()
             QWidget().setLayout(self.categories_layout)  # Delete old layout
 
-        # Create new grid layout
-        self.categories_layout = QGridLayout(self.categories_container)
-        self.categories_layout.setSpacing(15)
+        # Create new vertical layout for category buttons
+        self.categories_layout = QVBoxLayout(self.categories_container)
+        self.categories_layout.setSpacing(4)
+        self.categories_layout.setContentsMargins(0, 0, 0, 0)
 
         # Clear parameter widgets dict (will be repopulated)
         self.parameter_widgets.clear()
 
-        # Clear category group boxes list
-        self.category_group_boxes.clear()
+        # Clear category storage
+        self.category_buttons = []  # List of (button, content_widget) tuples
+        self.current_category = None
 
         # Get parameters to display
         if self.parameter_manager:
@@ -164,10 +176,7 @@ class AdvancedParametersWidget(QWidget):
             params_by_category = self.parameter_manager.get_advanced_parameters_by_category()
             advanced_param_names = set(self.parameter_manager.get_advanced_parameters())
 
-            # Create category widgets (3 per row)
-            row = 0
-            col = 0
-
+            # Create category button and content for each category
             for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
                 if cat_key in params_by_category and params_by_category[cat_key]:
                     # Get parameter objects for these names
@@ -175,14 +184,13 @@ class AdvancedParametersWidget(QWidget):
                              for name in params_by_category[cat_key]
                              if FRESCO_NAMELIST.get_parameter(name)]
                     if params:
-                        # Create category group box
-                        category_widget = self._create_category_column(cat_info, params)
-                        self.categories_layout.addWidget(category_widget, row, col)
+                        # Create category button and content
+                        button, content_widget = self._create_category_button_and_content(cat_info, params)
+                        self.categories_layout.addWidget(button)
+                        self.category_buttons.append((button, content_widget))
 
-                        col += 1
-                        if col >= 3:  # 3 categories per row
-                            col = 0
-                            row += 1
+            # Add stretch at bottom
+            self.categories_layout.addStretch()
 
             # Update count label
             advanced_count = len(advanced_param_names)
@@ -195,9 +203,6 @@ class AdvancedParametersWidget(QWidget):
             )
         else:
             # Fallback: show all non-basic parameters (old behavior)
-            row = 0
-            col = 0
-
             for cat_key, cat_info in FRESCO_NAMELIST.categories.items():
                 params = FRESCO_NAMELIST.get_parameters_by_category(cat_key)
                 if params:
@@ -205,36 +210,12 @@ class AdvancedParametersWidget(QWidget):
                     filtered_params = [p for p in params
                                      if p.name not in FRESCO_NAMELIST.BASIC_PARAMETERS]
                     if filtered_params:
-                        category_widget = self._create_category_column(cat_info, filtered_params)
-                        self.categories_layout.addWidget(category_widget, row, col)
+                        button, content_widget = self._create_category_button_and_content(cat_info, filtered_params)
+                        self.categories_layout.addWidget(button)
+                        self.category_buttons.append((button, content_widget))
 
-                        col += 1
-                        if col >= 3:  # 3 categories per row
-                            col = 0
-                            row += 1
-
+            self.categories_layout.addStretch()
             self.count_label.setText("Using static parameter categorization")
-
-    def _on_category_toggled(self, toggled_box, checked):
-        """
-        Handle category toggle for accordion behavior
-        When one category is expanded, collapse all others
-        """
-        # First, show/hide the content of the toggled box
-        if hasattr(toggled_box, 'content_widget'):
-            toggled_box.content_widget.setVisible(checked)
-
-        # Then, if expanding, collapse all other categories
-        if checked:
-            for group_box in self.category_group_boxes:
-                if group_box != toggled_box and group_box.isChecked():
-                    # Temporarily block signals to avoid triggering toggle chain
-                    group_box.blockSignals(True)
-                    group_box.setChecked(False)
-                    # Hide its content
-                    if hasattr(group_box, 'content_widget'):
-                        group_box.content_widget.setVisible(False)
-                    group_box.blockSignals(False)
 
     def refresh(self):
         """Refresh the widget to reflect current parameter categorization"""
@@ -253,49 +234,56 @@ class AdvancedParametersWidget(QWidget):
         self.parameter_manager = parameter_manager
         self.refresh()
 
-    def _create_category_column(self, cat_info, parameters):
-        """Create a collapsible single-column category widget with modern card design"""
-        # Create collapsible group box for this category
-        group_box = QGroupBox(f"{cat_info['title']}")
-        group_box.setCheckable(True)
-        group_box.setChecked(False)  # Collapsed by default
-        group_box.setStyleSheet("""
-            QGroupBox {
-                font-weight: 500;
-                font-size: 12px;
+    def _create_category_button_and_content(self, cat_info, parameters):
+        """Create a category button and its content widget"""
+        # Create button for category
+        button = QPushButton(cat_info['title'])
+        button.setCheckable(True)
+        button.setStyleSheet("""
+            QPushButton {
+                text-align: left;
+                padding: 8px 12px;
                 border: 1px solid #e5e7eb;
-                border-radius: 6px;
-                margin-top: 4px;
-                padding-top: 10px;
+                border-radius: 4px;
                 background-color: white;
+                font-size: 12px;
+                font-weight: 500;
+                color: #374151;
             }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 10px;
-                padding: 0 6px;
-                background-color: white;
-                color: #6b7280;
-            }
-            QGroupBox:hover {
+            QPushButton:hover {
+                background-color: #f3f4f6;
                 border-color: #cbd5e1;
             }
-            QGroupBox::indicator {
-                width: 0px;
-                height: 0px;
+            QPushButton:checked {
+                background-color: #007AFF;
+                color: white;
+                border-color: #007AFF;
             }
         """)
 
-        # Container widget for parameters (will be hidden/shown)
-        content_widget = QWidget()
+        # Create content widget (will be displayed in shared area when button is clicked)
+        content_widget = self._create_category_content(cat_info, parameters)
 
-        # Single column layout for parameters
-        form_layout = QFormLayout(content_widget)
+        # Connect button click to show this category's content
+        button.clicked.connect(lambda: self._show_category_content(button, content_widget))
+
+        return button, content_widget
+
+    def _create_category_content(self, cat_info, parameters):
+        """Create content widget for a category"""
+        # Create scroll area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+
+        # Create container for parameters
+        container = QWidget()
+        form_layout = QFormLayout(container)
         form_layout.setSpacing(8)
+        form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form_layout.setLabelAlignment(Qt.AlignLeft)
 
-        # Define consistent widget style
         widget_style = """
             QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox {
                 padding: 4px 6px;
@@ -309,39 +297,25 @@ class AdvancedParametersWidget(QWidget):
             }
         """
 
+        # Create widgets for each parameter
         for param in parameters:
-            # All filtering is now handled by parameter_manager
-            # Create label with tooltip
             label = QLabel(param.label + ":")
             label.setToolTip(param.tooltip)
             label.setStyleSheet("font-size: 11px; color: #374151;")
 
-            # Create appropriate widget based on parameter type
             if param.param_type == "number":
-                if param.step and param.step < 1:  # Float
+                if param.step and param.step < 1:
                     widget_input = QDoubleSpinBox()
                     widget_input.setDecimals(len(str(param.step).split('.')[-1]))
-                else:  # Int
+                else:
                     widget_input = QSpinBox()
 
-                if param.minimum is not None:
-                    widget_input.setMinimum(param.minimum)
-                else:
-                    widget_input.setMinimum(-999999)
-
-                if param.maximum is not None:
-                    widget_input.setMaximum(param.maximum)
-                else:
-                    widget_input.setMaximum(999999)
-
+                widget_input.setMinimum(param.minimum if param.minimum is not None else -999999)
+                widget_input.setMaximum(param.maximum if param.maximum is not None else 999999)
                 if param.step:
                     widget_input.setSingleStep(param.step)
-
                 if param.default is not None:
                     widget_input.setValue(param.default)
-                else:
-                    widget_input.setSpecialValueText("(default)")
-
                 widget_input.setToolTip(param.tooltip)
                 widget_input.setStyleSheet(widget_style)
                 widget_input.valueChanged.connect(self.parameters_changed.emit)
@@ -359,7 +333,6 @@ class AdvancedParametersWidget(QWidget):
                 widget_input = QComboBox()
                 for value, text in param.options:
                     widget_input.addItem(text, value)
-                # Set default
                 if param.default is not None:
                     for i in range(widget_input.count()):
                         if widget_input.itemData(i) == param.default:
@@ -376,32 +349,35 @@ class AdvancedParametersWidget(QWidget):
                 widget_input.setToolTip(param.tooltip)
                 widget_input.stateChanged.connect(self.parameters_changed.emit)
 
-            # Store widget for later retrieval
             self.parameter_widgets[param.name] = widget_input
-
-            # Add to form layout (single column)
             form_layout.addRow(label, widget_input)
 
-        # Create layout for group box and add content widget
-        group_layout = QVBoxLayout()
-        group_layout.addWidget(content_widget)
-        group_box.setLayout(group_layout)
+        # Set container as scroll widget content
+        scroll.setWidget(container)
+        return scroll
 
-        # Store content widget reference in group_box for later access
-        group_box.content_widget = content_widget
-        content_widget.setVisible(False)  # Start collapsed
+    def _show_category_content(self, button, content_widget):
+        """Show selected category's content in shared display area"""
+        # Clear current content from display area
+        while self.content_display_layout.count():
+            item = self.content_display_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
 
-        # Add to category group boxes list for accordion behavior
-        self.category_group_boxes.append(group_box)
+        # Add new content to display area
+        self.content_display_layout.addWidget(content_widget)
 
-        # Connect accordion behavior: handle both visibility and mutual exclusion
-        # Use a proper slot instead of lambda to avoid closure issues
-        def on_toggle(checked):
-            self._on_category_toggled(group_box, checked)
+        # Update button states (uncheck all others)
+        for btn, _ in self.category_buttons:
+            if btn != button:
+                btn.blockSignals(True)
+                btn.setChecked(False)
+                btn.blockSignals(False)
 
-        group_box.toggled.connect(on_toggle)
-
-        return group_box
+        # Ensure this button is checked
+        button.blockSignals(True)
+        button.setChecked(True)
+        button.blockSignals(False)
 
     def get_parameter_values(self):
         """Get all parameter values as a dictionary"""
