@@ -233,8 +233,8 @@ The GUI uses a unified, modern design system:
 - **Color Palette**: Tailwind-inspired (#d1d5db borders, #374151 text, #007AFF accents)
 - **Card-based Layout**: All major sections (General Parameters, Advanced Parameters, Optical Potentials) use rounded card design
 - **Unified Title Style**: All GroupBox titles use consistent font (600 weight, 14px), padding (16px), and colors
-- **Accordion Behavior**: Advanced Parameters categories use mutual exclusion (only one expanded at a time)
-- **Grid Layouts**: POT parameters and Advanced Parameters use compact grid layouts for space efficiency
+- **Master-Detail Layout**: Advanced Parameters uses a two-panel layout with category buttons on the left and shared content display on the right
+- **Grid Layouts**: POT parameters use compact grid layouts for space efficiency
 - **Collapsible Sections**: All sections start collapsed to reduce visual clutter
 
 **GroupBox Standard Style:**
@@ -281,7 +281,7 @@ from parameter_manager import ParameterManager, parse_fresco_input_parameters, d
   - `parse_partition_namelist()`: Extracts projectile/target information from &PARTITION
   - `parse_pot_namelists()`: Extracts optical potential definitions from &POT (supports FRESCO array syntax `p(1:n)=`)
   - `detect_calculation_type()`: Auto-detects elastic/inelastic/transfer from input structure
-- `advanced_parameters_widget.py` - UI for Advanced parameters (supports dynamic refresh, accordion behavior)
+- `advanced_parameters_widget.py` - UI for Advanced parameters (master-detail layout with category buttons and shared content area, supports dynamic refresh)
 - `dynamic_general_params_widget.py` - UI for General parameters (dynamically rebuilds based on categorization)
 - `fresco_namelist.py` - Parameter definitions and DEFAULT_GENERAL_PARAMS
 - `pot_widget.py` - Dynamic optical potential management (supports multiple potential components)
