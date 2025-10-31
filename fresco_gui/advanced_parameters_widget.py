@@ -46,25 +46,6 @@ class AdvancedParametersWidget(QWidget):
         self.group_box = QGroupBox("Advanced Parameters")
         self.group_box.setCheckable(True)
         self.group_box.setChecked(False)  # Collapsed by default
-        self.group_box.setStyleSheet("""
-            QGroupBox {
-                font-weight: 600;
-                font-size: 14px;
-                border: 1px solid #d1d5db;
-                border-radius: 8px;
-                margin-top: 8px;
-                padding: 16px;
-                background-color: white;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 12px;
-                padding: 0 8px;
-                background-color: white;
-                color: #374151;
-            }
-        """)
 
         # Content widget (hidden when collapsed)
         self.content_widget = QWidget()
@@ -74,13 +55,13 @@ class AdvancedParametersWidget(QWidget):
         info_label = QLabel(
             "💡 These parameters have sensible defaults. Hover over names for descriptions."
         )
-        info_label.setStyleSheet("color: #6b7280; font-size: 11px; padding: 8px; background-color: #f3f4f6; border-radius: 4px;")
+        info_label.setObjectName("infoBox")
         info_label.setWordWrap(True)
         content_layout.addWidget(info_label)
 
         # Count label showing number of advanced parameters
         self.count_label = QLabel()
-        self.count_label.setStyleSheet("color: #9ca3af; font-size: 10px; padding: 4px 0;")
+        self.count_label.setObjectName("countLabel")
         content_layout.addWidget(self.count_label)
 
         # Create scroll area for all categories (no tabs)
@@ -115,23 +96,8 @@ class AdvancedParametersWidget(QWidget):
         reset_layout.addStretch()
 
         reset_btn = QPushButton("Reset to Defaults")
-        reset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #6b7280;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 11px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #4b5563;
-            }
-            QPushButton:pressed {
-                background-color: #374151;
-            }
-        """)
+        reset_btn.setObjectName("resetButton")
+        reset_btn.setProperty("styleClass", "secondary")
         reset_btn.clicked.connect(self.reset_to_defaults)
         reset_layout.addWidget(reset_btn)
 
@@ -239,27 +205,7 @@ class AdvancedParametersWidget(QWidget):
         # Create button for category
         button = QPushButton(cat_info['title'])
         button.setCheckable(True)
-        button.setStyleSheet("""
-            QPushButton {
-                text-align: left;
-                padding: 8px 12px;
-                border: 1px solid #e5e7eb;
-                border-radius: 4px;
-                background-color: white;
-                font-size: 12px;
-                font-weight: 500;
-                color: #374151;
-            }
-            QPushButton:hover {
-                background-color: #f3f4f6;
-                border-color: #cbd5e1;
-            }
-            QPushButton:checked {
-                background-color: #007AFF;
-                color: white;
-                border-color: #007AFF;
-            }
-        """)
+        button.setObjectName("categoryButton")
 
         # Create content widget (will be displayed in shared area when button is clicked)
         content_widget = self._create_category_content(cat_info, parameters)
@@ -284,24 +230,11 @@ class AdvancedParametersWidget(QWidget):
         form_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form_layout.setLabelAlignment(Qt.AlignLeft)
 
-        widget_style = """
-            QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox {
-                padding: 4px 6px;
-                border: 1px solid #d1d5db;
-                border-radius: 4px;
-                background-color: white;
-                font-size: 11px;
-            }
-            QSpinBox:focus, QDoubleSpinBox:focus, QLineEdit:focus, QComboBox:focus {
-                border-color: #007AFF;
-            }
-        """
-
         # Create widgets for each parameter
         for param in parameters:
             label = QLabel(param.label + ":")
             label.setToolTip(param.tooltip)
-            label.setStyleSheet("font-size: 11px; color: #374151;")
+            label.setObjectName("paramLabel")
 
             if param.param_type == "number":
                 if param.step and param.step < 1:
@@ -317,7 +250,6 @@ class AdvancedParametersWidget(QWidget):
                 if param.default is not None:
                     widget_input.setValue(param.default)
                 widget_input.setToolTip(param.tooltip)
-                widget_input.setStyleSheet(widget_style)
                 widget_input.valueChanged.connect(self.parameters_changed.emit)
 
             elif param.param_type == "text":
@@ -326,7 +258,6 @@ class AdvancedParametersWidget(QWidget):
                     widget_input.setText(str(param.default))
                 widget_input.setPlaceholderText("(optional)")
                 widget_input.setToolTip(param.tooltip)
-                widget_input.setStyleSheet(widget_style)
                 widget_input.textChanged.connect(self.parameters_changed.emit)
 
             elif param.param_type == "select":
@@ -339,7 +270,6 @@ class AdvancedParametersWidget(QWidget):
                             widget_input.setCurrentIndex(i)
                             break
                 widget_input.setToolTip(param.tooltip)
-                widget_input.setStyleSheet(widget_style)
                 widget_input.currentIndexChanged.connect(self.parameters_changed.emit)
 
             else:  # checkbox
@@ -380,7 +310,7 @@ class AdvancedParametersWidget(QWidget):
         button.blockSignals(False)
 
     def get_parameter_values(self):
-        """Get all parameter values as a dictionary"""
+        """Get all parameter values as a dictionary (only non-default values for advanced params)"""
         values = {}
 
         for param_name, widget in self.parameter_widgets.items():
@@ -391,25 +321,34 @@ class AdvancedParametersWidget(QWidget):
             # Get value based on widget type
             if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
                 value = widget.value()
-                # Skip if equals default
+                # For advanced params, skip if:
+                # 1. Default is None and value is 0 (unmodified numeric widget)
+                # 2. Value equals a non-None default
+                if param.default is None and value == 0:
+                    continue  # Skip unmodified widgets with None default
                 if param.default is not None and value == param.default:
-                    continue
+                    continue  # Skip values equal to explicit defaults
                 values[param_name] = value
 
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
-                if text:
+                if text:  # Only include non-empty text
                     values[param_name] = text
 
             elif isinstance(widget, QComboBox):
                 value = widget.currentData()
-                # Skip if equals default or None
-                if value is None or (param.default is not None and value == param.default):
+                # Skip if None or equals default
+                if value is None:
+                    continue
+                if param.default is not None and value == param.default:
                     continue
                 values[param_name] = value
 
             elif isinstance(widget, QCheckBox):
                 value = widget.isChecked()
+                # Skip if equals default (or False if default is None)
+                if param.default is None and not value:
+                    continue
                 if param.default is not None and value == param.default:
                     continue
                 values[param_name] = value

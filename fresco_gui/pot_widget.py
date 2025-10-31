@@ -34,28 +34,6 @@ class SinglePotentialWidget(QWidget):
         self.group_box = QGroupBox(f"POT #{self.pot_number}")
         self.group_box.setCheckable(True)
         self.group_box.setChecked(False)  # Collapsed by default to save space
-        self.group_box.setStyleSheet("""
-            QGroupBox {
-                font-weight: 600;
-                font-size: 13px;
-                border: 1px solid #d1d5db;
-                border-radius: 8px;
-                margin-top: 8px;
-                padding-top: 12px;
-                background-color: white;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 12px;
-                padding: 0 8px;
-                background-color: white;
-                color: #374151;
-            }
-            QGroupBox:hover {
-                border-color: #007AFF;
-            }
-        """)
 
         # Content widget
         content_widget = QWidget()
@@ -66,7 +44,7 @@ class SinglePotentialWidget(QWidget):
         header_layout.setSpacing(10)
 
         type_label = QLabel("Type:")
-        type_label.setStyleSheet("font-weight: 500; color: #6b7280; font-size: 12px;")
+        type_label.setObjectName("potLabel")
         header_layout.addWidget(type_label)
 
         self.type_combo = QComboBox()
@@ -76,44 +54,13 @@ class SinglePotentialWidget(QWidget):
         self.type_combo.addItem("Spin-orbit (proj)", 3)
         self.type_combo.addItem("Spin-orbit (targ)", 4)
         self.type_combo.addItem("Deformation", 8)
-        self.type_combo.setStyleSheet("""
-            QComboBox {
-                padding: 4px 8px;
-                border: 1px solid #d1d5db;
-                border-radius: 4px;
-                background-color: white;
-                font-size: 12px;
-            }
-            QComboBox:hover {
-                border-color: #007AFF;
-            }
-            QComboBox::drop-down {
-                border: none;
-            }
-        """)
         self.type_combo.currentIndexChanged.connect(self.on_type_changed)
         header_layout.addWidget(self.type_combo, 1)
 
         header_layout.addStretch()
 
         remove_btn = QPushButton("Remove")
-        remove_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #ef4444;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 5px 12px;
-                font-size: 11px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #dc2626;
-            }
-            QPushButton:pressed {
-                background-color: #b91c1c;
-            }
-        """)
+        remove_btn.setObjectName("removeButton")
         remove_btn.clicked.connect(lambda: self.remove_requested.emit(self))
         header_layout.addWidget(remove_btn)
 
@@ -123,7 +70,6 @@ class SinglePotentialWidget(QWidget):
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)
         separator.setFrameShadow(QFrame.Sunken)
-        separator.setStyleSheet("background-color: #e5e7eb; max-height: 1px;")
         content_layout.addWidget(separator)
 
         # Parameters grid (2 columns for more compact layout)
@@ -173,19 +119,10 @@ class SinglePotentialWidget(QWidget):
             shape_combo.addItem("Yukawa", 3)
             shape_combo.addItem("Exponential", 4)
             shape_combo.addItem("Fourier-Bessel", -1)
-            shape_combo.setStyleSheet("""
-                QComboBox {
-                    padding: 3px 6px;
-                    border: 1px solid #d1d5db;
-                    border-radius: 4px;
-                    background-color: white;
-                    font-size: 11px;
-                }
-            """)
             self.parameter_widgets["shape"] = shape_combo
             shape_label = QLabel("Shape:")
             shape_label.setToolTip("Radial form factor shape")
-            shape_label.setStyleSheet("font-size: 11px; color: #374151;")
+            shape_label.setObjectName("paramLabel")
             self.add_to_grid(shape_label, shape_combo)
 
         # Add parameters based on type
@@ -222,24 +159,12 @@ class SinglePotentialWidget(QWidget):
             widget.setSingleStep(step)
         widget.setValue(default)
         widget.setToolTip(tooltip)
-        widget.setStyleSheet("""
-            QSpinBox, QDoubleSpinBox {
-                padding: 3px 6px;
-                border: 1px solid #d1d5db;
-                border-radius: 4px;
-                background-color: white;
-                font-size: 11px;
-            }
-            QSpinBox:focus, QDoubleSpinBox:focus {
-                border-color: #007AFF;
-            }
-        """)
 
         self.parameter_widgets[name] = widget
 
         label_widget = QLabel(label_text)
         label_widget.setToolTip(tooltip)
-        label_widget.setStyleSheet("font-size: 11px; color: #374151;")
+        label_widget.setObjectName("paramLabel")
         self.add_to_grid(label_widget, widget)
 
     def add_coulomb_params(self):
@@ -455,25 +380,6 @@ class PotentialManagerWidget(QWidget):
         self.group_box = QGroupBox("Optical Potentials")
         self.group_box.setCheckable(True)
         self.group_box.setChecked(False)  # Collapsed by default
-        self.group_box.setStyleSheet("""
-            QGroupBox {
-                font-weight: 600;
-                font-size: 14px;
-                border: 1px solid #d1d5db;
-                border-radius: 8px;
-                margin-top: 8px;
-                padding: 16px;
-                background-color: white;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 12px;
-                padding: 0 8px;
-                background-color: white;
-                color: #374151;
-            }
-        """)
 
         # Content widget
         content_widget = QWidget()
@@ -483,7 +389,7 @@ class PotentialManagerWidget(QWidget):
         info_label = QLabel(
             "💡 Add potential components (Coulomb, Volume, Surface, Spin-orbit). Hover over parameters for details."
         )
-        info_label.setStyleSheet("color: #6b7280; font-size: 11px; padding: 8px; background-color: #f3f4f6; border-radius: 4px;")
+        info_label.setObjectName("infoBox")
         info_label.setWordWrap(True)
         content_layout.addWidget(info_label)
 
@@ -503,38 +409,15 @@ class PotentialManagerWidget(QWidget):
         buttons_layout = QHBoxLayout()
 
         add_btn = QPushButton("➕ Add Potential Component")
-        add_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #34C759;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 12px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #30B956;
-            }
-        """)
+        add_btn.setObjectName("presetButton")
         add_btn.clicked.connect(self.add_potential)
         buttons_layout.addWidget(add_btn)
 
         buttons_layout.addStretch()
 
         reset_btn = QPushButton("Reset All")
-        reset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #666;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 12px;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #777;
-            }
-        """)
+        reset_btn.setObjectName("resetButton")
+        reset_btn.setProperty("styleClass", "secondary")
         reset_btn.clicked.connect(self.reset_potentials)
         buttons_layout.addWidget(reset_btn)
 
@@ -551,8 +434,8 @@ class PotentialManagerWidget(QWidget):
 
         layout.addWidget(self.group_box)
 
-        # Add initial Coulomb potential
-        self.add_potential()
+        # Add initial p+Ni78 potentials (Coulomb + Volume)
+        self.reset_potentials()
 
     def add_potential(self):
         """Add a new potential component"""
@@ -580,14 +463,46 @@ class PotentialManagerWidget(QWidget):
         self.potentials_changed.emit()
 
     def reset_potentials(self):
-        """Reset to single Coulomb potential"""
+        """Reset to p+Ni78 default potentials (Coulomb + Volume)"""
         # Remove all potentials
         for widget in self.potential_widgets:
             widget.deleteLater()
         self.potential_widgets.clear()
 
-        # Add fresh Coulomb potential
-        self.add_potential()
+        # Add POT #1: Coulomb
+        pot1 = SinglePotentialWidget(1)
+        pot1.remove_requested.connect(self.remove_potential)
+        # Set Coulomb parameters: ap=1.0, at=78.0, rc=1.2
+        pot1.type_combo.setCurrentIndex(0)  # Coulomb
+        pot1.parameter_widgets['kp'].setValue(1)
+        pot1.parameter_widgets['ap'].setValue(1.0)
+        pot1.parameter_widgets['at'].setValue(78.0)
+        pot1.parameter_widgets['rc'].setValue(1.2)
+        pot1.parameter_widgets['ac'].setValue(0.0)
+        self.potential_widgets.append(pot1)
+        self.potentials_layout.addWidget(pot1)
+
+        # Add POT #2: Volume
+        pot2 = SinglePotentialWidget(2)
+        pot2.remove_requested.connect(self.remove_potential)
+        # Set Volume parameters: V=40.0, r0=1.2, a=0.65, W=10.0, r0W=1.2, aW=0.5
+        pot2.type_combo.setCurrentIndex(1)  # Volume (index 1)
+        pot2.parameter_widgets['kp'].setValue(1)
+        pot2.parameter_widgets['v'].setValue(40.0)
+        pot2.parameter_widgets['vr0'].setValue(1.2)
+        pot2.parameter_widgets['va'].setValue(0.65)
+        pot2.parameter_widgets['w'].setValue(10.0)
+        pot2.parameter_widgets['wr0'].setValue(1.2)
+        pot2.parameter_widgets['wa'].setValue(0.5)
+        self.potential_widgets.append(pot2)
+        self.potentials_layout.addWidget(pot2)
+
+        # Expand both POTs to show the configuration
+        pot1.group_box.setChecked(True)
+        pot2.group_box.setChecked(True)
+
+        # Expand the main POT group box
+        self.group_box.setChecked(True)
 
         self.potentials_changed.emit()
 

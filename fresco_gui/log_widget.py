@@ -5,6 +5,7 @@ Log widget for displaying FRESCO output with syntax highlighting
 from PySide6.QtWidgets import QTextEdit, QWidget, QVBoxLayout
 from PySide6.QtGui import QTextCharFormat, QColor, QFont, QTextCursor
 from PySide6.QtCore import Qt, Signal
+from styles import LIGHT_COLORS
 
 
 class LogWidget(QWidget):
@@ -23,35 +24,37 @@ class LogWidget(QWidget):
         self.text_edit.setReadOnly(True)
         self.text_edit.setLineWrapMode(QTextEdit.NoWrap)
 
-        # Use monospace font
-        font = QFont("Menlo", 10)
+        # Use monospace font from design system
+        font = QFont("SF Mono", 11)
         if not font.exactMatch():
-            font = QFont("Monaco", 10)
+            font = QFont("Monaco", 11)
         if not font.exactMatch():
-            font = QFont("Courier New", 10)
+            font = QFont("Consolas", 11)
+        if not font.exactMatch():
+            font = QFont("Courier New", 11)
         self.text_edit.setFont(font)
 
         layout.addWidget(self.text_edit)
 
-        # Define text formats for different log levels
+        # Define text formats using design system colors
         self.format_normal = QTextCharFormat()
-        self.format_normal.setForeground(QColor("#333333"))
+        self.format_normal.setForeground(QColor(LIGHT_COLORS['text_primary']))
 
         self.format_info = QTextCharFormat()
-        self.format_info.setForeground(QColor("#0066CC"))
-        self.format_info.setFontWeight(QFont.Bold)
+        self.format_info.setForeground(QColor(LIGHT_COLORS['info']))
+        self.format_info.setFontWeight(QFont.Weight.DemiBold)
 
         self.format_warning = QTextCharFormat()
-        self.format_warning.setForeground(QColor("#FF8800"))
-        self.format_warning.setFontWeight(QFont.Bold)
+        self.format_warning.setForeground(QColor(LIGHT_COLORS['warning']))
+        self.format_warning.setFontWeight(QFont.Weight.DemiBold)
 
         self.format_error = QTextCharFormat()
-        self.format_error.setForeground(QColor("#CC0000"))
-        self.format_error.setFontWeight(QFont.Bold)
+        self.format_error.setForeground(QColor(LIGHT_COLORS['error']))
+        self.format_error.setFontWeight(QFont.Weight.DemiBold)
 
         self.format_success = QTextCharFormat()
-        self.format_success.setForeground(QColor("#009900"))
-        self.format_success.setFontWeight(QFont.Bold)
+        self.format_success.setForeground(QColor(LIGHT_COLORS['success']))
+        self.format_success.setFontWeight(QFont.Weight.DemiBold)
 
     def append_output(self, text):
         """Append normal output text"""

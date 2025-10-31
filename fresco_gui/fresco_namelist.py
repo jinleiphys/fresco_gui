@@ -451,25 +451,29 @@ class FrescoNamelist:
     def generate_namelist_text(self, param_values: Dict[str, Any]) -> str:
         """
         Generate &FRESCO namelist text from parameter values
-        Only includes non-default values
+        Includes all provided values (even if they match defaults)
+        Formats parameters 5 per line for better readability
         """
-        lines = ["&FRESCO"]
+        lines = [" &FRESCO"]
 
+        # Collect all parameter strings
+        param_strings = []
         for name, value in param_values.items():
             if name in self.parameters:
                 param = self.parameters[name]
-                # Skip if value is None or equals default
-                if value is not None and value != param.default:
-                    # Handle different parameter types
-                    if param.param_type == "text":
-                        lines.append(f"{name}={value}")
-                    elif param.param_type == "select":
-                        if value != param.default:
-                            lines.append(f"{name}={value}")
-                    else:  # number
-                        lines.append(f"{name}={value}")
+                # Include the value if it's not None
+                # Don't skip values that equal defaults - user explicitly set them
+                if value is not None:
+                    param_strings.append(f"{name}={value}")
 
-        lines.append("/")
+        # Format 5 parameters per line
+        PARAMS_PER_LINE = 5
+        for i in range(0, len(param_strings), PARAMS_PER_LINE):
+            chunk = param_strings[i:i + PARAMS_PER_LINE]
+            line = "     " + " ".join(chunk)
+            lines.append(line)
+
+        lines.append(" /")
         return "\n".join(lines)
 
 

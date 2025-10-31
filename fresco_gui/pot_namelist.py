@@ -391,17 +391,18 @@ class PotNamelist:
     def generate_pot_namelist(self, param_values: dict):
         """
         Generate a single &POT namelist block from parameter values
+        All parameters on one line for compact format
 
         Args:
             param_values: Dictionary of parameter_name: value
 
         Returns:
-            String containing the &POT namelist block
+            String containing the &POT namelist block (single line)
         """
         if not param_values:
             return ""
 
-        lines = ["&POT"]
+        parts = ["&POT"]
 
         # Format each parameter
         for param_name, value in param_values.items():
@@ -412,27 +413,27 @@ class PotNamelist:
             # Format based on parameter type
             if param.param_type == "text":
                 if value:
-                    lines.append(f"{param_name}='{value}'")
+                    parts.append(f"{param_name}='{value}'")
             elif param.param_type == "checkbox":
                 # Boolean values in FRESCO: T or F
-                lines.append(f"{param_name}={'T' if value else 'F'}")
+                parts.append(f"{param_name}={'T' if value else 'F'}")
             elif param.param_type == "number":
                 # Format numbers appropriately
                 if isinstance(value, int) or (isinstance(value, float) and value == int(value)):
-                    lines.append(f"{param_name}={int(value)}")
+                    parts.append(f"{param_name}={int(value)}")
                 else:
-                    lines.append(f"{param_name}={value}")
+                    parts.append(f"{param_name}={value}")
             elif param.param_type == "select":
                 # For select, value is already the appropriate type
                 if isinstance(value, str) and value:
-                    lines.append(f"{param_name}='{value}'")
+                    parts.append(f"{param_name}='{value}'")
                 elif value is not None:
-                    lines.append(f"{param_name}={value}")
+                    parts.append(f"{param_name}={value}")
 
-        lines.append("/")
-        lines.append("")
+        parts.append("/")
 
-        return "\n".join(lines)
+        # Return single line with all parameters
+        return " ".join(parts) + "\n"
 
 
 # Global instance

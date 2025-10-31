@@ -27,6 +27,10 @@ class ElasticScatteringForm(QWidget):
         self.init_ui()
         print("[ElasticForm] init_ui() completed", flush=True)
 
+        # Load default preset on initialization
+        self.load_preset()
+        print("[ElasticForm] Default preset loaded", flush=True)
+
     def update_from_input_file(self, input_text: str):
         """
         Update form and parameter categorization based on loaded input file
@@ -132,13 +136,21 @@ class ElasticScatteringForm(QWidget):
             import traceback
             traceback.print_exc()
 
-        # Update header with parsed information
-        if 'namep' in partition_info and 'namet' in partition_info:
-            header = f"{partition_info['namep']} + {partition_info['namet']} elastic scattering"
-            if 'elab' in param_values:
-                header += f" at {param_values['elab']} MeV"
-            self.header.setText(header)
-            print(f"  Set header = {header}", flush=True)
+        # Update header from first line of input file
+        try:
+            first_line = input_text.strip().split('\n')[0].strip()
+            # Remove leading '!' if present
+            if first_line.startswith('!'):
+                first_line = first_line[1:].strip()
+            self.header.setText(first_line)
+            print(f"  Set header from file = {first_line}", flush=True)
+        except Exception as e:
+            print(f"  Could not extract header from file, using default: {e}", flush=True)
+            # Fallback: generate from partition info
+            if 'namep' in partition_info and 'namet' in partition_info:
+                header = f"{partition_info['namep']} + {partition_info['namet']} elastic scattering"
+                self.header.setText(header)
+                print(f"  Set header from partition = {header}", flush=True)
 
         # Load POT information into potential manager
         print(f"\n[ElasticForm] Loading POT information...", flush=True)
@@ -161,24 +173,12 @@ class ElasticScatteringForm(QWidget):
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         header_label = QLabel("Elastic Scattering Configuration")
-        header_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #007AFF;")
+        header_label.setObjectName("sectionHeader")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
         preset_btn = QPushButton("Load Preset Example")
-        preset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #34C759;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #30B956;
-            }
-        """)
+        preset_btn.setObjectName("presetButton")
         preset_btn.clicked.connect(self.load_preset)
         header_layout.addWidget(preset_btn)
 
@@ -272,42 +272,45 @@ class ElasticScatteringForm(QWidget):
         layout.addWidget(scroll)
 
     def load_preset(self):
-        """Load a preset example"""
-        self.header.setText("Alpha + 12C elastic scattering at 30 MeV")
+        """Load preset example from p+Ni78 elastic scattering"""
+        # Use the actual example file content (single-line header as required by FRESCO)
+        preset_input = """p+Ni78 Coulomb and Nuclear elastic scattering
+NAMELIST
+ &FRESCO hcm=0.1 rmatch=60
+	 jtmin=0.0 jtmax=50 absend= 0.0010
+	 thmin=0.00 thmax=180.00 thinc=1.00
+ 	 chans=1 smats=2  xstabl=1
+	 elab(1:3)=6.9 11.00 49.350  nlab(1:3)=1 1 /
 
-        # Set typical values for elastic scattering
-        preset_values = {
-            'hcm': 0.05,
-            'rmatch': 30.0,
-            'absend': 0.01,
-            'thmax': 180.0,
-            'jtmax': 40,
-            'thinc': 5.0,
-            'elab': 30.0,
-            'iter': 1,
-        }
+ &PARTITION namep='p' massp=1.00 zp=1
+ 	    namet='Ni78' masst=78.0000 zt=28 qval=-0.000 nex=1  /
+ &STATES jp=0.5 bandp=1 ep=0.0000 cpot=1 jt=0.0 bandt=1 et=0.0000  /
+ &partition /
 
-        # Apply to general parameters
-        for param_name, value in preset_values.items():
-            self.general_params.set_parameter_value(param_name, value)
+ &POT kp=1 ap=1.000 at=78.000 rc=1.2  /
+ &POT kp=1 type=1 p1=40.00 p2=1.2 p3=0.65 p4=10.0 p5=1.2 p6=0.500  /
+ &pot /
+ &overlap /
+ &coupling /
+"""
+        # Load using the same method as file loading
+        self.update_from_input_file(preset_input)
 
-        self.proj_name.setText("alpha")
-        self.proj_mass.setValue(4.0)
-        self.proj_charge.setValue(2.0)
-        self.proj_spin.setValue(0.0)
-
-        self.targ_name.setText("12C")
-        self.targ_mass.setValue(12.0)
-        self.targ_charge.setValue(6.0)
-        self.targ_spin.setValue(0.0)
-
-        # Reset potentials to default (Coulomb + Volume)
-        self.pot_manager.reset_potentials()
+        # Expand/activate the POT group box and individual POT components
+        self.pot_manager.group_box.setChecked(True)
+        for pot_widget in self.pot_manager.potential_widgets:
+            pot_widget.group_box.setChecked(True)
 
     def generate_input(self):
         """Generate FRESCO input text from form values"""
         # Collect parameters from general parameters widget
         general_params = self.general_params.get_parameter_values()
+
+        # DEBUG: Print what we got
+        print(f"\n[ElasticForm.generate_input] DEBUG:")
+        print(f"  General params from widget: {general_params}")
+        print(f"  Parameter manager general params: {self.param_manager.get_general_parameters()}")
+        print(f"  Widget dict keys: {list(self.general_params.parameter_widgets.keys())}")
 
         # Generate &FRESCO namelist with general and advanced parameters
         fresco_namelist = self.advanced_params.generate_namelist_text(general_params)
@@ -315,34 +318,19 @@ class ElasticScatteringForm(QWidget):
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
 
-        # Build complete input file
-        input_text = f"""! {self.header.text()}
-! Generated by FRESCO Quantum Studio
-
+        # Build complete input file (single-line header as required by FRESCO)
+        input_text = f"""{self.header.text()}
+NAMELIST
 {fresco_namelist}
 
-&PARTITION
-namep='{self.proj_name.text()}'
-massp={self.proj_mass.value()}
-zp={self.proj_charge.value()}
-jp={self.proj_spin.value()}
-namet='{self.targ_name.text()}'
-masst={self.targ_mass.value()}
-zt={self.targ_charge.value()}
-jt={self.targ_spin.value()}
-/
+&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} jp={self.proj_spin.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} jt={self.targ_spin.value()} /
 
-&STATES
-jp={self.proj_spin.value()}
-bandp=1
-ep=0.0
-cpot=1
-jt={self.targ_spin.value()}
-bandt=1
-et=0.0
-/
+&STATES jp={self.proj_spin.value()} bandp=1 ep=0.0 cpot=1 jt={self.targ_spin.value()} bandt=1 et=0.0 /
 
 {pot_namelists}
+
+! Generated by FRESCO Quantum Studio (Form Builder)
+! Questions or issues? Contact: jinlei@fewbody.com
 """
         return input_text
 
@@ -427,31 +415,19 @@ class InelasticScatteringForm(QWidget):
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         header_label = QLabel("Inelastic Scattering Configuration")
-        header_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #007AFF;")
+        header_label.setObjectName("sectionHeader")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
         preset_btn = QPushButton("Load Preset Example")
-        preset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #34C759;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #30B956;
-            }
-        """)
+        preset_btn.setObjectName("presetButton")
         preset_btn.clicked.connect(self.load_preset)
         header_layout.addWidget(preset_btn)
 
         main_layout.addWidget(header_widget)
 
         info_label = QLabel("Configure inelastic scattering to excited states")
-        info_label.setStyleSheet("color: #6c757d; font-style: italic;")
+        info_label.setObjectName("infoLabel")
         main_layout.addWidget(info_label)
 
         # General Parameters
@@ -647,76 +623,27 @@ class InelasticScatteringForm(QWidget):
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
 
-        # Build complete input file
-        input_text = f"""! {self.header.text()}
-! Generated by FRESCO Quantum Studio
-
+        # Build complete input file (single-line header as required by FRESCO)
+        input_text = f"""{self.header.text()}
+NAMELIST
 {fresco_namelist}
 
-! Ground state partition
-&PARTITION
-namep='{self.proj_name.text()}'
-massp={self.proj_mass.value()}
-zp={self.proj_charge.value()}
-namet='{self.targ_name.text()}'
-masst={self.targ_mass.value()}
-zt={self.targ_charge.value()}
-qval=0.0
-/
+&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 /
 
-! Ground state
-&STATES
-jp=0.0
-bandp=1
-ep=0.0
-cpot=1
-jt=0.0
-bandt=1
-et=0.0
-/
+&STATES jp=0.0 bandp=1 ep=0.0 cpot=1 jt=0.0 bandt=1 et=0.0 /
 
-! Excited state partition (same particles)
-&PARTITION
-namep='{self.proj_name.text()}'
-massp={self.proj_mass.value()}
-zp={self.proj_charge.value()}
-namet='{self.targ_name.text()}'
-masst={self.targ_mass.value()}
-zt={self.targ_charge.value()}
-qval=-{self.exc_energy.value()}
-/
+&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=-{self.exc_energy.value()} /
 
-! Excited state
-&STATES
-jp=0.0
-bandp=1
-ep=0.0
-cpot=2
-jt={self.exc_spin.value()}
-bandt=2
-et={self.exc_energy.value()}
-/
+&STATES jp=0.0 bandp=1 ep=0.0 cpot=2 jt={self.exc_spin.value()} bandt=2 et={self.exc_energy.value()} /
 
 {pot_namelists}
 
-! Coupling potential (deformation)
-&POT
-kp=3
-type=8
-p1={self.beta.value()}
-p2={self.deform_radius.value()}
-p3=0.65
-/
+&POT kp=3 type=8 p1={self.beta.value()} p2={self.deform_radius.value()} p3=0.65 /
 
-! Coupling between ground and excited state
-&COUPLING
-icto=2
-icfrom=1
-kind=3
-ip1=0
-ip2=3
-p1={self.lambda_multipolarity.value()}
-/
+&COUPLING icto=2 icfrom=1 kind=3 ip1=0 ip2=3 p1={self.lambda_multipolarity.value()} /
+
+! Generated by FRESCO Quantum Studio (Form Builder)
+! Questions or issues? Contact: jinlei@fewbody.com
 """
         return input_text
 
@@ -801,31 +728,19 @@ class TransferReactionForm(QWidget):
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         header_label = QLabel("Transfer Reaction Configuration")
-        header_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #007AFF;")
+        header_label.setObjectName("sectionHeader")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
         preset_btn = QPushButton("Load Preset Example")
-        preset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #34C759;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 12px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #30B956;
-            }
-        """)
+        preset_btn.setObjectName("presetButton")
         preset_btn.clicked.connect(self.load_preset)
         header_layout.addWidget(preset_btn)
 
         main_layout.addWidget(header_widget)
 
         info_label = QLabel("Configure one-nucleon or cluster transfer reactions (DWBA)")
-        info_label.setStyleSheet("color: #6c757d; font-style: italic;")
+        info_label.setObjectName("infoLabel")
         main_layout.addWidget(info_label)
 
         # General Parameters
@@ -1081,102 +996,31 @@ class TransferReactionForm(QWidget):
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
 
-        # Build complete input file
-        input_text = f"""! {self.header.text()}
-! Generated by FRESCO Quantum Studio - Transfer Reaction
-
+        # Build complete input file (single-line header as required by FRESCO)
+        input_text = f"""{self.header.text()}
+NAMELIST
 {fresco_namelist}
 
-! Entrance channel: {self.proj_name.text()} + {self.targ_name.text()}
-&PARTITION
-namep='{self.proj_name.text()}'
-massp={self.proj_mass.value()}
-zp={self.proj_charge.value()}
-namet='{self.targ_name.text()}'
-masst={self.targ_mass.value()}
-zt={self.targ_charge.value()}
-qval=0.0
-/
+&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 /
 
-! Entrance channel state
-&STATES
-jp=0.5
-bandp=1
-ep=0.0
-cpot=1
-jt=0.0
-bandt=1
-et=0.0
-/
+&STATES jp=0.5 bandp=1 ep=0.0 cpot=1 jt=0.0 bandt=1 et=0.0 /
 
-! Exit channel: {self.eject_name.text()} + {self.resid_name.text()}
-&PARTITION
-namep='{self.eject_name.text()}'
-massp={self.eject_mass.value()}
-zp={self.eject_charge.value()}
-namet='{self.resid_name.text()}'
-masst={self.resid_mass.value()}
-zt={self.resid_charge.value()}
-qval={self.qvalue.value()}
-nex=1
-/
+&PARTITION namep='{self.eject_name.text()}' massp={self.eject_mass.value()} zp={self.eject_charge.value()} namet='{self.resid_name.text()}' masst={self.resid_mass.value()} zt={self.resid_charge.value()} qval={self.qvalue.value()} nex=1 /
 
-! Exit channel state
-&STATES
-jp=0.5
-bandp=2
-ep=0.0
-cpot=2
-jt={self.trans_j.value()}
-bandt=2
-et=0.0
-/
+&STATES jp=0.5 bandp=2 ep=0.0 cpot=2 jt={self.trans_j.value()} bandt=2 et=0.0 /
 
 {pot_namelists}
 
-! Binding potential for transferred particle
-&POT
-kp=3
-type=1
-shape=0
-p1=50.0
-p2=1.25
-p3=0.65
-/
+&POT kp=3 type=1 shape=0 p1=50.0 p2=1.25 p3=0.65 /
 
-! Overlap for entrance partition (projectile structure)
-&OVERLAP
-kn1=1
-ic1=1
-ic2=1
-kind=0
-/
+&OVERLAP kn1=1 ic1=1 ic2=1 kind=0 /
 
-! Overlap for transfer (defines transferred particle)
-&OVERLAP
-kn1=2
-ic1=1
-ic2=2
-kind=7
-ch1=1
-ch2=2
-nn={self.trans_nodes.value() + 1}
-l={self.trans_l.value()}
-j={self.trans_j.value()}
-kbpot=3
-be={self.binding_energy.value()}
-isc=1
-ipc=1
-/
+&OVERLAP kn1=2 ic1=1 ic2=2 kind=7 ch1=1 ch2=2 nn={self.trans_nodes.value() + 1} l={self.trans_l.value()} j={self.trans_j.value()} kbpot=3 be={self.binding_energy.value()} isc=1 ipc=1 /
 
-! Coupling for transfer
-&COUPLING
-icto=2
-icfrom=1
-kind=7
-ip1=0
-ip2=0
-/
+&COUPLING icto=2 icfrom=1 kind=7 ip1=0 ip2=0 /
+
+! Generated by FRESCO Quantum Studio (Form Builder)
+! Questions or issues? Contact: jinlei@fewbody.com
 """
         return input_text
 
@@ -1198,25 +1042,12 @@ class FormInputPanel(QWidget):
         # Header
         header_layout = QHBoxLayout()
         header_label = QLabel("Form-Based Input Generator")
-        header_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        header_label.setObjectName("pageHeader")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
         # Generate button
         self.generate_btn = QPushButton("Generate Input File")
-        self.generate_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #0066DD;
-            }
-        """)
         self.generate_btn.clicked.connect(self.generate_input)
         header_layout.addWidget(self.generate_btn)
 
@@ -1239,8 +1070,8 @@ class FormInputPanel(QWidget):
         layout.addWidget(self.calc_tabs)
 
         # Footer with hints
-        footer = QLabel("💡 Tip: Fill in the parameters above, or use 'Load Preset Example' to get started quickly.")
-        footer.setStyleSheet("color: #6c757d; font-size: 11px; font-style: italic;")
+        footer = QLabel("💡 Tip: The form is pre-loaded with p+Ni78 example. Modify parameters as needed, then click 'Generate Input File' to update the Text Editor.")
+        footer.setObjectName("footerHint")
         footer.setWordWrap(True)
         layout.addWidget(footer)
 
@@ -1262,7 +1093,7 @@ class FormInputPanel(QWidget):
         # Show confirmation
         QMessageBox.information(self, "Input Generated",
                               "FRESCO input file has been generated!\n\n"
-                              "Switch to the 'Text Editor' tab to view and edit it.")
+                              "You will be automatically switched to the 'Text Editor' tab.")
 
     def get_current_input(self):
         """Get the current input text from the active form"""

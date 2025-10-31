@@ -263,7 +263,7 @@ class DynamicGeneralParametersWidget(QWidget):
         self.refresh()
 
     def get_parameter_values(self):
-        """Get all parameter values as a dictionary"""
+        """Get all parameter values as a dictionary (including default values)"""
         values = {}
 
         for param_name, widget in self.parameter_widgets.items():
@@ -272,29 +272,24 @@ class DynamicGeneralParametersWidget(QWidget):
                 continue
 
             # Get value based on widget type
+            # Always include the value, even if it equals default
+            # This ensures all general parameters are in the output
             if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
                 value = widget.value()
-                # Skip if equals default
-                if param.default is not None and value == param.default:
-                    continue
                 values[param_name] = value
 
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
-                if text:
+                if text:  # Only include non-empty text
                     values[param_name] = text
 
             elif isinstance(widget, QComboBox):
                 value = widget.currentData()
-                # Skip if equals default or None
-                if value is None or (param.default is not None and value == param.default):
-                    continue
-                values[param_name] = value
+                if value is not None:  # Include if not None
+                    values[param_name] = value
 
             elif isinstance(widget, QCheckBox):
                 value = widget.isChecked()
-                if param.default is not None and value == param.default:
-                    continue
                 values[param_name] = value
 
         return values

@@ -35,7 +35,7 @@ class InputPanel(QWidget):
         # Header for text editor
         header_layout = QHBoxLayout()
         header_label = QLabel("FRESCO Input File Editor")
-        header_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        header_label.setObjectName("pageHeader")
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
@@ -61,8 +61,8 @@ class InputPanel(QWidget):
         text_layout.addWidget(self.text_edit)
 
         # Footer with hints for text editor
-        footer = QLabel("Tip: Use File → Open to load existing input files, or File → Save to save your changes.")
-        footer.setStyleSheet("color: #6c757d; font-size: 11px; font-style: italic;")
+        footer = QLabel("💡 Tip: Edit FRESCO input directly here, or click 'Show Example' to load p+Ni78 example. Use File → Open/Save for file operations.")
+        footer.setObjectName("footerHint")
         footer.setWordWrap(True)
         text_layout.addWidget(footer)
 
@@ -82,8 +82,10 @@ class InputPanel(QWidget):
         return self.text_edit.toPlainText()
 
     def set_input_text(self, text):
-        """Set the input text"""
+        """Set the input text and switch to Text Editor tab"""
         self.text_edit.setPlainText(text)
+        # Automatically switch to Text Editor tab after input is generated
+        self.tabs.setCurrentIndex(0)  # 0 = Text Editor tab
 
     def load_from_file(self, file_path):
         """Load input from file and switch to Form Builder"""
@@ -134,73 +136,24 @@ class InputPanel(QWidget):
         self.text_edit.clear()
 
     def show_example(self):
-        """Show an example FRESCO input"""
-        example = """! Example FRESCO input file
-! Alpha + 12C elastic scattering at 30 MeV
+        """Show an example FRESCO input - p+Ni78 elastic scattering"""
+        example = """p+Ni78 Coulomb and Nuclear elastic scattering
+NAMELIST
+ &FRESCO hcm=0.1 rmatch=60
+	 jtmin=0.0 jtmax=50 absend= 0.0010
+	 thmin=0.00 thmax=180.00 thinc=1.00
+ 	 chans=1 smats=2  xstabl=1
+	 elab(1:3)=6.9 11.00 49.350  nlab(1:3)=1 1 /
 
-&FRESCO
-hcm=0.05
-rmatch=30.0
-absend=0.01
-thmax=180.0
-jtmax=40
-thinc=5.0
-elab=30.0
-iter=1
-accrcy=0.005
-rasym=25.0
-switch=500.0
-ajswtch=10.0
-iblock=1
-nnu=30
-chans=1
-smats=2
-xstabl=1
-koords=1
-kqmax=2
-/
+ &PARTITION namep='p' massp=1.00 zp=1
+ 	    namet='Ni78' masst=78.0000 zt=28 qval=-0.000 nex=1  /
+ &STATES jp=0.5 bandp=1 ep=0.0000 cpot=1 jt=0.0 bandt=1 et=0.0000  /
+ &partition /
 
-&PARTITION
-namep='alpha'
-massp=4.0
-zp=2.0
-jp=0.0
-namet='12C'
-masst=12.0
-zt=6.0
-jt=0.0
-/
-
-&STATES
-jp=0.0
-bandp=1
-ep=0.0
-cpot=1
-jt=0.0
-bandt=1
-et=0.0
-/
-
-&POT
-kp=1
-type=0
-p1=0.0
-p2=0.0
-p3=0.0
-ap=1.0
-at=1.0
-rc=1.3
-/
-
-&POT
-kp=1
-type=1
-p1=50.0
-p2=1.2
-p3=0.65
-ap=1.0
-at=1.0
-rc=1.3
-/
+ &POT kp=1 ap=1.000 at=78.000 rc=1.2  /
+ &POT kp=1 type=1 p1=40.00 p2=1.2 p3=0.65 p4=10.0 p5=1.2 p6=0.500  /
+ &pot /
+ &overlap /
+ &coupling /
 """
         self.set_input_text(example)
