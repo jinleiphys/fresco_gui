@@ -233,23 +233,71 @@ class SinglePotentialWidget(QWidget):
                                    "Diffuseness for deformation", 0.65, 0.1, 2.0, 0.01)
 
     def get_pot_values(self):
-        """Get current parameter values as dictionary"""
+        """
+        Get current parameter values as dictionary
+        Returns values in FRESCO p(1:n) format for proper namelist generation
+        """
         values = {}
 
         # Add type
         pot_type = self.type_combo.currentData()
         values["type"] = pot_type
 
-        # Add all parameter values
+        # Define reverse mapping from user-friendly names to p1, p2, p3...
+        # This ensures FRESCO gets the p(1:n) array format it expects
+        reverse_mapping = {}
+
+        if pot_type == 0:  # Coulomb
+            reverse_mapping = {
+                'ap': 'p1',   # Projectile mass number
+                'at': 'p2',   # Target parameter
+                'rc': 'p3',   # Coulomb radius parameter
+            }
+        elif pot_type == 1:  # Volume
+            reverse_mapping = {
+                'v':    'p1',  # Real depth V
+                'vr0':  'p2',  # Real radius r0
+                'va':   'p3',  # Real diffuseness a
+                'w':    'p4',  # Imaginary depth W
+                'wr0':  'p5',  # Imaginary radius r0W
+                'wa':   'p6',  # Imaginary diffuseness aW
+            }
+        elif pot_type == 2:  # Surface
+            reverse_mapping = {
+                'v':    'p1',  # Real depth V
+                'vr0':  'p2',  # Real radius r0
+                'va':   'p3',  # Real diffuseness a
+                'w':    'p4',  # Imaginary depth W
+                'wr0':  'p5',  # Imaginary radius r0W
+                'wa':   'p6',  # Imaginary diffuseness aW
+            }
+        elif pot_type == 3:  # Spin-orbit
+            reverse_mapping = {
+                'vso':    'p1',  # Real S.O. strength
+                'vsor0':  'p2',  # Real S.O. radius
+                'vsoa':   'p3',  # Real S.O. diffuseness
+                'wso':    'p4',  # Imaginary S.O. strength
+                'wsor0':  'p5',  # Imaginary S.O. radius
+                'wsoa':   'p6',  # Imaginary S.O. diffuseness
+            }
+
+        # Add all parameter values with mapping
         for param_name, widget in self.parameter_widgets.items():
+            # Get the value
+            value = None
             if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
-                values[param_name] = widget.value()
+                value = widget.value()
             elif isinstance(widget, QComboBox):
-                values[param_name] = widget.currentData()
+                value = widget.currentData()
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
                 if text:
-                    values[param_name] = text
+                    value = text
+
+            if value is not None:
+                # Use reverse mapping if available, otherwise use original name
+                output_name = reverse_mapping.get(param_name, param_name)
+                values[output_name] = value
 
         return values
 

@@ -136,6 +136,11 @@ class DynamicGeneralParametersWidget(QWidget):
         # Create widgets for each general parameter
         try:
             for param_name in general_param_names:
+                # Skip elab and nlab - handled by EnergyArrayWidget
+                if param_name in ['elab', 'nlab']:
+                    print(f"      Skipping {param_name} (handled by EnergyArrayWidget)...", flush=True)
+                    continue
+
                 print(f"      Creating widget for {param_name}...", flush=True)
                 param = FRESCO_NAMELIST.get_parameter(param_name)
                 if not param:

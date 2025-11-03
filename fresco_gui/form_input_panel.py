@@ -13,6 +13,7 @@ from advanced_parameters_widget import AdvancedParametersWidget
 from pot_widget import PotentialManagerWidget
 from parameter_manager import ParameterManager
 from dynamic_general_params_widget import DynamicGeneralParametersWidget
+from energy_array_widget import EnergyArrayWidget
 
 
 class ElasticScatteringForm(QWidget):
@@ -152,6 +153,18 @@ class ElasticScatteringForm(QWidget):
                 self.header.setText(header)
                 print(f"  Set header from partition = {header}", flush=True)
 
+        # Parse and load energy array (elab/nlab)
+        print(f"\n[ElasticForm] Parsing energy array...", flush=True)
+        try:
+            self.energy_widget.parse_fresco_format(input_text)
+            boundaries, intervals = self.energy_widget.get_boundaries_and_intervals()
+            print(f"  Loaded {len(boundaries)} energy boundaries: {boundaries}", flush=True)
+            print(f"  With {len(intervals)} intervals: {intervals}", flush=True)
+        except Exception as e:
+            print(f"[ElasticForm] ERROR parsing energies: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+
         # Load POT information into potential manager
         print(f"\n[ElasticForm] Loading POT information...", flush=True)
         self.pot_manager.load_from_input_text(input_text)
@@ -200,6 +213,11 @@ class ElasticScatteringForm(QWidget):
         # Dynamic General FRESCO Parameters
         self.general_params = DynamicGeneralParametersWidget(parameter_manager=self.param_manager)
         main_layout.addWidget(self.general_params)
+
+        # Energy Array Widget (for elab/nlab) - integrated into General Parameters
+        self.energy_widget = EnergyArrayWidget()
+        # Insert energy widget into the General Parameters group box
+        self.general_params.group_box.layout().addWidget(self.energy_widget)
 
         # Projectile Parameters
         proj_group = QGroupBox("Projectile (Incoming Particle)")
@@ -312,8 +330,20 @@ NAMELIST
         print(f"  Parameter manager general params: {self.param_manager.get_general_parameters()}")
         print(f"  Widget dict keys: {list(self.general_params.parameter_widgets.keys())}")
 
+        # Remove elab and nlab from general_params (handled by energy widget)
+        general_params_filtered = {k: v for k, v in general_params.items() if k not in ['elab', 'nlab']}
+
         # Generate &FRESCO namelist with general and advanced parameters
-        fresco_namelist = self.advanced_params.generate_namelist_text(general_params)
+        fresco_namelist = self.advanced_params.generate_namelist_text(general_params_filtered)
+
+        # Insert energy array into the namelist (before the closing /)
+        energy_string = self.energy_widget.get_fresco_format()
+        print(f"  Energy string generated: '{energy_string}'", flush=True)
+
+        # Insert energy line before the closing '/'
+        fresco_namelist = fresco_namelist.rsplit('/', 1)[0] + f"     {energy_string} /"
+        print(f"  Namelist after energy insertion (first 500 chars):", flush=True)
+        print(f"  {fresco_namelist[:500]}", flush=True)
 
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
@@ -323,9 +353,9 @@ NAMELIST
 NAMELIST
 {fresco_namelist}
 
-&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} jp={self.proj_spin.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} jt={self.targ_spin.value()} /
-
-&STATES jp={self.proj_spin.value()} bandp=1 ep=0.0 cpot=1 jt={self.targ_spin.value()} bandt=1 et=0.0 /
+ &PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 nex=1  /
+ &STATES jp={self.proj_spin.value()} bandp=1 ep=0.0 cpot=1 jt={self.targ_spin.value()} bandt=1 et=0.0  /
+ &partition /
 
 {pot_namelists}
 

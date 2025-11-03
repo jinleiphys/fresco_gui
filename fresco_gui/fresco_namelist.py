@@ -12,7 +12,8 @@ class FrescoParameter:
     def __init__(self, name: str, label: str, tooltip: str,
                  param_type: str = "number", default: Any = None,
                  step: float = None, minimum: float = None, maximum: float = None,
-                 options: List[tuple] = None, category: str = "general"):
+                 options: List[tuple] = None, category: str = "general",
+                 exclude_from_namelist: bool = False):
         self.name = name
         self.label = label
         self.tooltip = tooltip
@@ -23,6 +24,7 @@ class FrescoParameter:
         self.maximum = maximum
         self.options = options or []  # For select type: [(value, text), ...]
         self.category = category
+        self.exclude_from_namelist = exclude_from_namelist  # If True, don't include in &FRESCO namelist
 
 
 class FrescoNamelist:
@@ -403,13 +405,15 @@ class FrescoNamelist:
         params["finec"] = FrescoParameter(
             "finec", "Fine structure constant (finec)",
             "1/(fine-structure constant) for electrostatic e² (default=137.03599)",
-            default=137.03599, step=0.001, minimum=100.0, maximum=200.0, category="advanced"
+            default=137.03599, step=0.001, minimum=100.0, maximum=200.0, category="advanced",
+            exclude_from_namelist=True  # Physical constant - don't include in &FRESCO namelist
         )
 
         params["hbarc"] = FrescoParameter(
             "hbarc", "ℏc constant (hbarc)",
             "Value of ℏc in MeV·fm (default=197.3269788)",
-            default=197.3269788, step=0.001, minimum=100.0, maximum=300.0, category="advanced"
+            default=197.3269788, step=0.001, minimum=100.0, maximum=300.0, category="advanced",
+            exclude_from_namelist=True  # Physical constant - don't include in &FRESCO namelist
         )
 
         params["pel"] = FrescoParameter(
@@ -453,6 +457,7 @@ class FrescoNamelist:
         Generate &FRESCO namelist text from parameter values
         Includes all provided values (even if they match defaults)
         Formats parameters 5 per line for better readability
+        Excludes parameters marked with exclude_from_namelist=True (like finec, hbarc)
         """
         lines = [" &FRESCO"]
 
@@ -461,6 +466,9 @@ class FrescoNamelist:
         for name, value in param_values.items():
             if name in self.parameters:
                 param = self.parameters[name]
+                # Skip parameters that should be excluded from namelist
+                if param.exclude_from_namelist:
+                    continue
                 # Include the value if it's not None
                 # Don't skip values that equal defaults - user explicitly set them
                 if value is not None:
