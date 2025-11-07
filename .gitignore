@@ -27,6 +27,9 @@ wheels/
 fresco_code/source/fresco
 fresco_code/source/sfresco
 
+# FRESCO output files
+fort.*
+
 # IDE
 .vscode/
 .idea/
