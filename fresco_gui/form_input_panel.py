@@ -725,9 +725,16 @@ class TransferReactionForm(QWidget):
 
     def __init__(self):
         super().__init__()
+        print("[TransferForm] __init__ called", flush=True)
         # Create parameter manager for transfer reactions
         self.param_manager = ParameterManager(calculation_type="transfer")
+        print(f"[TransferForm] ParameterManager created, general params: {self.param_manager.get_general_parameters()}", flush=True)
         self.init_ui()
+        print("[TransferForm] init_ui() completed", flush=True)
+
+        # Load default preset on initialization
+        self.load_preset()
+        print("[TransferForm] Default preset loaded", flush=True)
 
     def update_from_input_file(self, input_text: str):
         """
@@ -736,56 +743,119 @@ class TransferReactionForm(QWidget):
         Args:
             input_text: Content of the loaded FRESCO input file
         """
-        from parameter_manager import parse_fresco_input_parameters, parse_fresco_parameter_values
+        from parameter_manager import (
+            parse_fresco_input_parameters,
+            parse_fresco_parameter_values,
+            parse_partition_namelist
+        )
+
+        print("\n" + "="*60)
+        print("[TransferForm] Starting update_from_input_file")
+        print("="*60)
 
         # Parse parameters from the input file
         file_params = parse_fresco_input_parameters(input_text)
         param_values = parse_fresco_parameter_values(input_text)
+        partition_info = parse_partition_namelist(input_text)
+
+        print(f"\n[TransferForm] Parsed {len(file_params)} parameter names from file:")
+        print(f"  {sorted(file_params)}")
+        print(f"\n[TransferForm] Parsed {len(param_values)} parameter values from file:")
+        for k, v in sorted(param_values.items()):
+            print(f"  {k} = {v}")
+        print(f"\n[TransferForm] Parsed partition info:")
+        for k, v in partition_info.items():
+            print(f"  {k} = {v}")
 
         # Update parameter manager
+        print(f"\n[TransferForm] Updating parameter manager...")
         self.param_manager.update_from_input_file(file_params)
 
-        # IMPORTANT: Refresh UI first (this rebuilds widgets)
-        self.advanced_params.refresh()
+        # IMPORTANT: Refresh UI first (this rebuilds widgets for both general and advanced)
+        print(f"\n[TransferForm] Refreshing general parameters widget...", flush=True)
+        try:
+            self.general_params.refresh()
+            print(f"[TransferForm] General params refresh complete", flush=True)
+        except Exception as e:
+            print(f"[TransferForm] ERROR in general_params.refresh(): {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
-        # THEN populate form fields with parameter values
-        self._populate_form_values(param_values)
+        print(f"\n[TransferForm] Refreshing advanced parameters widget...", flush=True)
+        try:
+            self.advanced_params.refresh()
+            print(f"[TransferForm] Advanced params refresh complete", flush=True)
+        except Exception as e:
+            print(f"[TransferForm] ERROR in advanced_params.refresh(): {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
-        # THEN populate advanced parameters (new widgets created by refresh)
-        for param_name, param_value in param_values.items():
-            self.advanced_params.set_parameter_value(param_name, param_value)
+        # THEN populate all FRESCO parameters with values
+        print(f"\n[TransferForm] Populating all FRESCO parameters...", flush=True)
+        try:
+            for param_name, param_value in param_values.items():
+                print(f"  Processing {param_name} = {param_value}...", flush=True)
+                # Try to set in general params first, then advanced
+                if param_name in self.general_params.parameter_widgets:
+                    self.general_params.set_parameter_value(param_name, param_value)
+                else:
+                    self.advanced_params.set_parameter_value(param_name, param_value)
+            print(f"[TransferForm] All FRESCO parameters populated", flush=True)
+        except Exception as e:
+            print(f"[TransferForm] ERROR populating parameters: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
-        print(f"[TransferForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
+        # Populate partition information
+        print(f"\n[TransferForm] Populating partition information...", flush=True)
+        try:
+            # Entrance channel
+            if 'namep' in partition_info:
+                self.proj_name.setText(partition_info['namep'])
+            if 'massp' in partition_info:
+                self.proj_mass.setValue(partition_info['massp'])
+            if 'zp' in partition_info:
+                self.proj_charge.setValue(partition_info['zp'])
 
-    def _populate_form_values(self, param_values: dict):
-        """Populate form fields with parsed parameter values"""
-        param_widget_map = {
-            'hcm': self.hcm,
-            'rmatch': self.rmatch,
-            'thmax': self.thmax,
-            'jtmax': self.jtmax,
-            'thinc': self.thinc,
-            'elab': self.elab,
-        }
+            if 'namet' in partition_info:
+                self.targ_name.setText(partition_info['namet'])
+            if 'masst' in partition_info:
+                self.targ_mass.setValue(partition_info['masst'])
+            if 'zt' in partition_info:
+                self.targ_charge.setValue(partition_info['zt'])
+        except Exception as e:
+            print(f"[TransferForm] ERROR populating partition: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
 
-        print(f"  [TransferForm._populate_form_values] Received {len(param_values)} parameters to populate")
+        # Update header from first line of input file
+        try:
+            first_line = input_text.strip().split('\n')[0].strip()
+            if first_line.startswith('!'):
+                first_line = first_line[1:].strip()
+            self.header.setText(first_line)
+            print(f"  Set header from file = {first_line}", flush=True)
+        except Exception as e:
+            print(f"  Could not extract header from file: {e}", flush=True)
 
-        for param_name, widget in param_widget_map.items():
-            if param_name in param_values:
-                value = param_values[param_name]
-                try:
-                    old_value = widget.value()
-                    print(f"  {param_name}: current={old_value}, new={value}, widget={widget.__class__.__name__}")
-                    widget.setValue(value)
-                    widget.update()
-                    widget.repaint()
-                    actual_value = widget.value()
-                    if actual_value == value:
-                        print(f"  ✓ {param_name} = {value} (verified)")
-                    else:
-                        print(f"  ✗ {param_name} set to {value} but reads as {actual_value}!")
-                except Exception as e:
-                    print(f"  Warning: Could not set {param_name} = {value}: {e}")
+        # Parse and load energy array (elab/nlab)
+        print(f"\n[TransferForm] Parsing energy array...", flush=True)
+        try:
+            self.energy_widget.parse_fresco_format(input_text)
+            boundaries, intervals = self.energy_widget.get_boundaries_and_intervals()
+            print(f"  Loaded {len(boundaries)} energy boundaries: {boundaries}", flush=True)
+            print(f"  With {len(intervals)} intervals: {intervals}", flush=True)
+        except Exception as e:
+            print(f"[TransferForm] ERROR parsing energies: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+
+        # Load POT information into potential manager
+        print(f"\n[TransferForm] Loading POT information...", flush=True)
+        self.pot_manager.load_from_input_text(input_text)
+
+        print(f"\n[TransferForm] Update complete. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}", flush=True)
+        print("="*60 + "\n", flush=True)
 
     def init_ui(self):
         """Initialize the transfer reaction form"""
@@ -815,49 +885,27 @@ class TransferReactionForm(QWidget):
         info_label.setObjectName("infoLabel")
         main_layout.addWidget(info_label)
 
-        # General Parameters
-        general_group = QGroupBox("General FRESCO Parameters")
-        general_layout = QFormLayout()
-        general_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        general_layout.setLabelAlignment(Qt.AlignLeft)
+        # Header field (not a FRESCO parameter)
+        header_group = QGroupBox("Calculation Description")
+        header_layout = QFormLayout()
+        header_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        header_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.header = QLineEdit("Deuteron + 40Ca -> proton + 41Ca (d,p) reaction")
         self.header.setAlignment(Qt.AlignLeft)
-        general_layout.addRow("Header:", self.header)
+        header_layout.addRow("Header:", self.header)
 
-        self.hcm = QDoubleSpinBox()
-        self.hcm.setRange(0.001, 1.0)
-        self.hcm.setDecimals(3)
-        self.hcm.setValue(0.1)
-        general_layout.addRow("Integration step (hcm):", self.hcm)
+        header_group.setLayout(header_layout)
+        main_layout.addWidget(header_group)
 
-        self.rmatch = QDoubleSpinBox()
-        self.rmatch.setRange(1.0, 200.0)
-        self.rmatch.setValue(20.0)
-        general_layout.addRow("Matching radius (rmatch):", self.rmatch)
+        # Dynamic General FRESCO Parameters
+        self.general_params = DynamicGeneralParametersWidget(parameter_manager=self.param_manager)
+        main_layout.addWidget(self.general_params)
 
-        self.thmax = QDoubleSpinBox()
-        self.thmax.setRange(0.0, 180.0)
-        self.thmax.setValue(180.0)
-        general_layout.addRow("Maximum angle (thmax):", self.thmax)
-
-        self.jtmax = QSpinBox()
-        self.jtmax.setRange(1, 200)
-        self.jtmax.setValue(50)
-        general_layout.addRow("Maximum J (jtmax):", self.jtmax)
-
-        self.thinc = QDoubleSpinBox()
-        self.thinc.setRange(0.1, 10.0)
-        self.thinc.setValue(5.0)
-        general_layout.addRow("Angle increment (thinc):", self.thinc)
-
-        self.elab = QDoubleSpinBox()
-        self.elab.setRange(0.1, 1000.0)
-        self.elab.setValue(15.0)
-        general_layout.addRow("Lab energy (elab) [MeV]:", self.elab)
-
-        general_group.setLayout(general_layout)
-        main_layout.addWidget(general_group)
+        # Energy Array Widget (for elab/nlab) - integrated into General Parameters
+        self.energy_widget = EnergyArrayWidget()
+        # Insert energy widget into the General Parameters group box
+        self.general_params.group_box.layout().addWidget(self.energy_widget)
 
         # Entrance Channel (a + A)
         entrance_group = QGroupBox("Entrance Channel (a + A)")
@@ -1015,23 +1063,35 @@ class TransferReactionForm(QWidget):
 
     def load_preset(self):
         """Load preset example for d(40Ca,p)41Ca stripping reaction"""
-        self.header.setText("40Ca(d,p)41Ca neutron transfer reaction")
-        self.hcm.setValue(0.1)
-        self.rmatch.setValue(20.0)
-        self.thmax.setValue(180.0)
-        self.jtmax.setValue(50)
-        self.thinc.setValue(5.0)
-        self.elab.setValue(15.0)
+        # Use the actual example file content (single-line header as required by FRESCO)
+        preset_input = """40Ca(d,p)41Ca neutron transfer reaction
+NAMELIST
+ &FRESCO hcm=0.1 rmatch=20
+	 jtmin=0.0 jtmax=50 absend= 0.0010
+	 thmin=0.00 thmax=180.00 thinc=5.00
+ 	 chans=1 smats=2  xstabl=1
+	 elab(1:1)=15.0 nlab(1:1)=1 /
 
-        # Entrance
-        self.proj_name.setText("d")
-        self.proj_mass.setValue(2.0)
-        self.proj_charge.setValue(1.0)
-        self.targ_name.setText("40Ca")
-        self.targ_mass.setValue(40.0)
-        self.targ_charge.setValue(20.0)
+ &PARTITION namep='d' massp=2.00 zp=1
+ 	    namet='40Ca' masst=40.0000 zt=20 qval=0.000 nex=1  /
+ &STATES jp=0.5 bandp=1 ep=0.0000 cpot=1 jt=0.0 bandt=1 et=0.0000  /
+ &partition /
 
-        # Exit
+ &POT kp=1 ap=2.000 at=40.000 rc=1.2  /
+ &POT kp=1 type=1 p1=40.00 p2=1.2 p3=0.65 p4=10.0 p5=1.2 p6=0.500  /
+ &pot /
+ &overlap /
+ &coupling /
+"""
+        # Load using the same method as file loading
+        self.update_from_input_file(preset_input)
+
+        # Expand/activate the POT group box and individual POT components
+        self.pot_manager.group_box.setChecked(True)
+        for pot_widget in self.pot_manager.potential_widgets:
+            pot_widget.group_box.setChecked(True)
+
+        # Set transfer-specific parameters (not in FRESCO namelist)
         self.eject_name.setText("p")
         self.eject_mass.setValue(1.0078)
         self.eject_charge.setValue(1.0)
@@ -1040,7 +1100,6 @@ class TransferReactionForm(QWidget):
         self.resid_charge.setValue(20.0)
         self.qvalue.setValue(5.08)
 
-        # Transfer
         self.trans_name.setText("n")
         self.trans_mass.setValue(1.0087)
         self.trans_charge.setValue(0.0)
@@ -1049,27 +1108,19 @@ class TransferReactionForm(QWidget):
         self.trans_nodes.setValue(0)
         self.binding_energy.setValue(2.224)
 
-        # Reset potentials to default
-        self.pot_manager.reset_potentials()
-
     def generate_input(self):
         """Generate FRESCO input text for transfer reaction"""
-        # Collect basic parameters for the &FRESCO namelist
-        basic_params = {
-            'hcm': self.hcm.value(),
-            'rmatch': self.rmatch.value(),
-            'thmax': self.thmax.value(),
-            'jtmax': self.jtmax.value(),
-            'thinc': self.thinc.value(),
-            'elab': self.elab.value(),
-            'chans': 1,
-            'smats': 2,
-            'xstabl': 1,
-            'iter': 1,
-        }
+        # Get parameters from dynamic general parameters widget
+        general_params = self.general_params.get_parameter_values()
+
+        # Get energy array from energy widget
+        boundaries, intervals = self.energy_widget.get_boundaries_and_intervals()
+        if boundaries:
+            general_params['elab'] = boundaries
+            general_params['nlab'] = intervals
 
         # Generate &FRESCO namelist with advanced parameters
-        fresco_namelist = self.advanced_params.generate_namelist_text(basic_params)
+        fresco_namelist = self.advanced_params.generate_namelist_text(general_params)
 
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
