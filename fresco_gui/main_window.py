@@ -220,6 +220,9 @@ class MainWindow(QMainWindow):
         self.fresco_runner.finished.connect(self.on_calculation_finished)
         self.fresco_runner.started.connect(self.on_calculation_started)
 
+        # Setup auto-save callback
+        self.input_panel.set_auto_save_callback(self.auto_save)
+
     def new_file(self):
         """Create a new input file"""
         reply = QMessageBox.question(
@@ -282,6 +285,15 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save file:\n{str(e)}")
 
+    def auto_save(self):
+        """Auto-save current file (only if a file is already open)"""
+        if self.current_file:
+            try:
+                self.input_panel.save_to_file(self.current_file)
+                self.status_bar.showMessage(f"Auto-saved: {os.path.basename(self.current_file)}", 2000)
+            except Exception as e:
+                self.log_widget.append_warning(f"Auto-save failed: {str(e)}")
+
     def run_fresco(self):
         """Run FRESCO calculation"""
         # Check if we have an input file
@@ -299,6 +311,13 @@ class MainWindow(QMainWindow):
                     return
             else:
                 return
+
+        # Auto-save before running (save any modifications)
+        try:
+            self.input_panel.save_to_file(self.current_file)
+            self.log_widget.append_info(f"Auto-saved input file before running: {os.path.basename(self.current_file)}")
+        except Exception as e:
+            QMessageBox.warning(self, "Save Error", f"Failed to save input file:\n{str(e)}\n\nContinue running anyway?")
 
         # Find FRESCO executable
         exe_path, msg, found = get_executable_info("fresco", self.repo_root)

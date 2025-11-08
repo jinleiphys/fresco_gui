@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout, QPushButton, QTabWidget
 )
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 
 from form_input_panel import FormInputPanel
 
@@ -16,6 +16,14 @@ class InputPanel(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.auto_save_callback = None  # Will be set by MainWindow
+        self._loading_file = False  # Flag to prevent auto-save during file loading
+
+        # Auto-save timer (2 seconds delay after last edit)
+        self.auto_save_timer = QTimer()
+        self.auto_save_timer.setSingleShot(True)
+        self.auto_save_timer.timeout.connect(self._trigger_auto_save)
+
         self.init_ui()
 
     def init_ui(self):
@@ -58,10 +66,13 @@ class InputPanel(QWidget):
             font = QFont("Courier New", 11)
         self.text_edit.setFont(font)
 
+        # Connect text changed signal for auto-save
+        self.text_edit.textChanged.connect(self._on_text_changed)
+
         text_layout.addWidget(self.text_edit)
 
         # Footer with hints for text editor
-        footer = QLabel("💡 Tip: Edit FRESCO input directly here, or click 'Show Example' to load p+Ni78 example. Use File → Open/Save for file operations.")
+        footer = QLabel("💡 Tip: Edit FRESCO input directly here, or click 'Show Example' to load p+Ni78 example. Auto-save enabled (2s after edit).")
         footer.setObjectName("footerHint")
         footer.setWordWrap(True)
         text_layout.addWidget(footer)
@@ -83,7 +94,10 @@ class InputPanel(QWidget):
 
     def set_input_text(self, text):
         """Set the input text and switch to Text Editor tab"""
+        # Temporarily disable auto-save during programmatic text setting
+        self._loading_file = True
         self.text_edit.setPlainText(text)
+        self._loading_file = False
         # Automatically switch to Text Editor tab after input is generated
         self.tabs.setCurrentIndex(0)  # 0 = Text Editor tab
 
@@ -157,3 +171,23 @@ NAMELIST
  &coupling /
 """
         self.set_input_text(example)
+
+    def set_auto_save_callback(self, callback):
+        """Set the auto-save callback function (called by MainWindow)"""
+        self.auto_save_callback = callback
+
+    def _on_text_changed(self):
+        """Handle text changes - restart auto-save timer"""
+        # Don't auto-save during file loading or form generation
+        if self._loading_file:
+            return
+
+        # Only trigger auto-save if callback is set (i.e., file is open)
+        if self.auto_save_callback:
+            # Restart timer (2 seconds delay)
+            self.auto_save_timer.start(2000)
+
+    def _trigger_auto_save(self):
+        """Trigger the auto-save callback"""
+        if self.auto_save_callback:
+            self.auto_save_callback()
