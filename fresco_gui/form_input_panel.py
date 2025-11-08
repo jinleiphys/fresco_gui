@@ -222,6 +222,8 @@ class ElasticScatteringForm(QWidget):
         # Projectile Parameters
         proj_group = QGroupBox("Projectile (Incoming Particle)")
         proj_layout = QFormLayout()
+        proj_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        proj_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.proj_name = QLineEdit("alpha")
         proj_layout.addRow("Name:", self.proj_name)
@@ -249,6 +251,8 @@ class ElasticScatteringForm(QWidget):
         # Target Parameters
         targ_group = QGroupBox("Target (Stationary Nucleus)")
         targ_layout = QFormLayout()
+        targ_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        targ_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.targ_name = QLineEdit("12C")
         targ_layout.addRow("Name:", self.targ_name)
@@ -513,6 +517,8 @@ class InelasticScatteringForm(QWidget):
         # Projectile Parameters
         proj_group = QGroupBox("Projectile (Incoming Particle)")
         proj_layout = QFormLayout()
+        proj_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        proj_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.proj_name = QLineEdit("alpha")
         proj_layout.addRow("Name:", self.proj_name)
@@ -540,6 +546,8 @@ class InelasticScatteringForm(QWidget):
         # Target Parameters
         targ_group = QGroupBox("Target (Stationary Nucleus)")
         targ_layout = QFormLayout()
+        targ_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        targ_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.targ_name = QLineEdit("12C")
         targ_layout.addRow("Name:", self.targ_name)
@@ -567,6 +575,8 @@ class InelasticScatteringForm(QWidget):
         # Excited State Parameters
         excited_group = QGroupBox("Excited State Configuration")
         excited_layout = QFormLayout()
+        excited_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        excited_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.exc_spin = QDoubleSpinBox()
         self.exc_spin.setRange(0.0, 20.0)
@@ -594,6 +604,8 @@ class InelasticScatteringForm(QWidget):
         # Deformation Parameters
         deform_group = QGroupBox("Collective Model / Deformation")
         deform_layout = QFormLayout()
+        deform_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        deform_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.beta = QDoubleSpinBox()
         self.beta.setRange(0.0, 2.0)
@@ -850,6 +862,8 @@ class TransferReactionForm(QWidget):
         # Entrance Channel (a + A)
         entrance_group = QGroupBox("Entrance Channel (a + A)")
         entrance_layout = QFormLayout()
+        entrance_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        entrance_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.proj_name = QLineEdit("d")
         entrance_layout.addRow("Projectile (a) name:", self.proj_name)
@@ -887,6 +901,8 @@ class TransferReactionForm(QWidget):
         # Exit Channel (b + B)
         exit_group = QGroupBox("Exit Channel (b + B)")
         exit_layout = QFormLayout()
+        exit_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        exit_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.eject_name = QLineEdit("p")
         exit_layout.addRow("Ejectile (b) name:", self.eject_name)
@@ -933,6 +949,8 @@ class TransferReactionForm(QWidget):
         # Transferred Particle
         transfer_group = QGroupBox("Transferred Particle (x)")
         transfer_layout = QFormLayout()
+        transfer_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        transfer_layout.setLabelAlignment(Qt.AlignLeft)
 
         self.trans_name = QLineEdit("n")
         transfer_layout.addRow("Particle name:", self.trans_name)
