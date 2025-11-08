@@ -384,56 +384,85 @@ class InelasticScatteringForm(QWidget):
         Args:
             input_text: Content of the loaded FRESCO input file
         """
-        from parameter_manager import parse_fresco_input_parameters, parse_fresco_parameter_values
+        from parameter_manager import (
+            parse_fresco_input_parameters,
+            parse_fresco_parameter_values,
+            parse_partition_namelist
+        )
+
+        print("\n" + "="*60)
+        print("[InelasticForm] Starting update_from_input_file")
+        print("="*60)
 
         # Parse parameters from the input file
         file_params = parse_fresco_input_parameters(input_text)
         param_values = parse_fresco_parameter_values(input_text)
+        partition_info = parse_partition_namelist(input_text)
+
+        print(f"\n[InelasticForm] Parsed {len(file_params)} parameter names from file")
+        print(f"\n[InelasticForm] Parsed {len(param_values)} parameter values from file")
+        print(f"\n[InelasticForm] Parsed partition info")
 
         # Update parameter manager
+        print(f"\n[InelasticForm] Updating parameter manager...")
         self.param_manager.update_from_input_file(file_params)
 
-        # IMPORTANT: Refresh UI first (this rebuilds widgets)
+        # IMPORTANT: Refresh UI first (this rebuilds widgets for both general and advanced)
+        print(f"\n[InelasticForm] Refreshing general parameters widget...")
+        self.general_params.refresh()
+        print(f"[InelasticForm] General params refresh complete")
+
+        print(f"\n[InelasticForm] Refreshing advanced parameters widget...")
         self.advanced_params.refresh()
+        print(f"[InelasticForm] Advanced params refresh complete")
 
-        # THEN populate form fields with parameter values
-        self._populate_form_values(param_values)
-
-        # THEN populate advanced parameters (new widgets created by refresh)
+        # THEN populate all FRESCO parameters with values
+        print(f"\n[InelasticForm] Populating all FRESCO parameters...")
         for param_name, param_value in param_values.items():
-            self.advanced_params.set_parameter_value(param_name, param_value)
+            # Try to set in general params first, then advanced
+            if param_name in self.general_params.parameter_widgets:
+                self.general_params.set_parameter_value(param_name, param_value)
+            else:
+                self.advanced_params.set_parameter_value(param_name, param_value)
+        print(f"[InelasticForm] All FRESCO parameters populated")
 
-        print(f"[InelasticForm] Updated from input file. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
+        # Populate partition information
+        print(f"\n[InelasticForm] Populating partition information...")
+        if 'namep' in partition_info:
+            self.proj_name.setText(partition_info['namep'])
+        if 'massp' in partition_info:
+            self.proj_mass.setValue(partition_info['massp'])
+        if 'zp' in partition_info:
+            self.proj_charge.setValue(partition_info['zp'])
 
-    def _populate_form_values(self, param_values: dict):
-        """Populate form fields with parsed parameter values"""
-        param_widget_map = {
-            'hcm': self.hcm,
-            'rmatch': self.rmatch,
-            'thmax': self.thmax,
-            'jtmax': self.jtmax,
-            'thinc': self.thinc,
-            'elab': self.elab,
-        }
+        if 'namet' in partition_info:
+            self.targ_name.setText(partition_info['namet'])
+        if 'masst' in partition_info:
+            self.targ_mass.setValue(partition_info['masst'])
+        if 'zt' in partition_info:
+            self.targ_charge.setValue(partition_info['zt'])
 
-        print(f"  [InelasticForm._populate_form_values] Received {len(param_values)} parameters to populate")
+        # Update header from first line of input file
+        try:
+            first_line = input_text.strip().split('\n')[0].strip()
+            if first_line.startswith('!'):
+                first_line = first_line[1:].strip()
+            self.header.setText(first_line)
+        except Exception as e:
+            if 'namep' in partition_info and 'namet' in partition_info:
+                header = f"{partition_info['namep']} + {partition_info['namet']} inelastic scattering"
+                self.header.setText(header)
 
-        for param_name, widget in param_widget_map.items():
-            if param_name in param_values:
-                value = param_values[param_name]
-                try:
-                    old_value = widget.value()
-                    print(f"  {param_name}: current={old_value}, new={value}, widget={widget.__class__.__name__}")
-                    widget.setValue(value)
-                    widget.update()
-                    widget.repaint()
-                    actual_value = widget.value()
-                    if actual_value == value:
-                        print(f"  ✓ {param_name} = {value} (verified)")
-                    else:
-                        print(f"  ✗ {param_name} set to {value} but reads as {actual_value}!")
-                except Exception as e:
-                    print(f"  Warning: Could not set {param_name} = {value}: {e}")
+        # Parse and load energy array
+        print(f"\n[InelasticForm] Parsing energy array...")
+        self.energy_widget.parse_fresco_format(input_text)
+
+        # Load POT information
+        print(f"\n[InelasticForm] Loading POT information...")
+        self.pot_manager.load_from_input_text(input_text)
+
+        print(f"\n[InelasticForm] Update complete. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
+        print("="*60 + "\n")
 
     def init_ui(self):
         """Initialize the inelastic scattering form"""
@@ -459,90 +488,81 @@ class InelasticScatteringForm(QWidget):
 
         main_layout.addWidget(header_widget)
 
-        info_label = QLabel("Configure inelastic scattering to excited states")
-        info_label.setObjectName("infoLabel")
-        main_layout.addWidget(info_label)
+        # Header field (not a FRESCO parameter)
+        header_group = QGroupBox("Calculation Description")
+        header_layout_inner = QFormLayout()
+        header_layout_inner.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        header_layout_inner.setLabelAlignment(Qt.AlignLeft)
 
-        # General Parameters
-        general_group = QGroupBox("General FRESCO Parameters")
-        general_layout = QFormLayout()
-        general_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        general_layout.setLabelAlignment(Qt.AlignLeft)
-
-        self.header = QLineEdit("Alpha + 12C inelastic to 2+ state")
+        self.header = QLineEdit("Alpha + 12C inelastic to 2+ state at 4.439 MeV")
         self.header.setAlignment(Qt.AlignLeft)
-        general_layout.addRow("Header:", self.header)
+        header_layout_inner.addRow("Header:", self.header)
 
-        self.hcm = QDoubleSpinBox()
-        self.hcm.setRange(0.001, 1.0)
-        self.hcm.setDecimals(3)
-        self.hcm.setValue(0.05)
-        general_layout.addRow("Integration step (hcm):", self.hcm)
+        header_group.setLayout(header_layout_inner)
+        main_layout.addWidget(header_group)
 
-        self.rmatch = QDoubleSpinBox()
-        self.rmatch.setRange(1.0, 200.0)
-        self.rmatch.setValue(30.0)
-        general_layout.addRow("Matching radius (rmatch):", self.rmatch)
+        # Dynamic General FRESCO Parameters
+        self.general_params = DynamicGeneralParametersWidget(parameter_manager=self.param_manager)
+        main_layout.addWidget(self.general_params)
 
-        self.thmax = QDoubleSpinBox()
-        self.thmax.setRange(0.0, 180.0)
-        self.thmax.setValue(180.0)
-        general_layout.addRow("Maximum angle (thmax):", self.thmax)
+        # Energy Array Widget (for elab/nlab) - integrated into General Parameters
+        self.energy_widget = EnergyArrayWidget()
+        # Insert energy widget into the General Parameters group box
+        self.general_params.group_box.layout().addWidget(self.energy_widget)
 
-        self.jtmax = QSpinBox()
-        self.jtmax.setRange(1, 200)
-        self.jtmax.setValue(60)
-        general_layout.addRow("Maximum J (jtmax):", self.jtmax)
-
-        self.thinc = QDoubleSpinBox()
-        self.thinc.setRange(0.1, 10.0)
-        self.thinc.setValue(2.0)
-        general_layout.addRow("Angle increment (thinc):", self.thinc)
-
-        self.elab = QDoubleSpinBox()
-        self.elab.setRange(0.1, 1000.0)
-        self.elab.setValue(30.0)
-        general_layout.addRow("Lab energy (elab) [MeV]:", self.elab)
-
-        general_group.setLayout(general_layout)
-        main_layout.addWidget(general_group)
-
-        # Particles
-        part_group = QGroupBox("Projectile and Target")
-        part_layout = QFormLayout()
+        # Projectile Parameters
+        proj_group = QGroupBox("Projectile (Incoming Particle)")
+        proj_layout = QFormLayout()
 
         self.proj_name = QLineEdit("alpha")
-        part_layout.addRow("Projectile name:", self.proj_name)
+        proj_layout.addRow("Name:", self.proj_name)
 
         self.proj_mass = QDoubleSpinBox()
         self.proj_mass.setRange(0.001, 300.0)
         self.proj_mass.setDecimals(4)
         self.proj_mass.setValue(4.0)
-        part_layout.addRow("Projectile mass (amu):", self.proj_mass)
+        proj_layout.addRow("Mass (amu):", self.proj_mass)
 
         self.proj_charge = QDoubleSpinBox()
         self.proj_charge.setRange(0.0, 100.0)
         self.proj_charge.setValue(2.0)
-        part_layout.addRow("Projectile charge:", self.proj_charge)
+        proj_layout.addRow("Charge:", self.proj_charge)
 
-        part_layout.addRow(QLabel(""))  # Spacer
+        self.proj_spin = QDoubleSpinBox()
+        self.proj_spin.setRange(0.0, 20.0)
+        self.proj_spin.setSingleStep(0.5)
+        self.proj_spin.setValue(0.0)
+        proj_layout.addRow("Spin:", self.proj_spin)
+
+        proj_group.setLayout(proj_layout)
+        main_layout.addWidget(proj_group)
+
+        # Target Parameters
+        targ_group = QGroupBox("Target (Stationary Nucleus)")
+        targ_layout = QFormLayout()
 
         self.targ_name = QLineEdit("12C")
-        part_layout.addRow("Target name:", self.targ_name)
+        targ_layout.addRow("Name:", self.targ_name)
 
         self.targ_mass = QDoubleSpinBox()
         self.targ_mass.setRange(0.001, 300.0)
         self.targ_mass.setDecimals(4)
         self.targ_mass.setValue(12.0)
-        part_layout.addRow("Target mass (amu):", self.targ_mass)
+        targ_layout.addRow("Mass (amu):", self.targ_mass)
 
         self.targ_charge = QDoubleSpinBox()
         self.targ_charge.setRange(0.0, 100.0)
         self.targ_charge.setValue(6.0)
-        part_layout.addRow("Target charge:", self.targ_charge)
+        targ_layout.addRow("Charge:", self.targ_charge)
 
-        part_group.setLayout(part_layout)
-        main_layout.addWidget(part_group)
+        self.targ_spin = QDoubleSpinBox()
+        self.targ_spin.setRange(0.0, 20.0)
+        self.targ_spin.setSingleStep(0.5)
+        self.targ_spin.setValue(0.0)
+        targ_layout.addRow("Spin:", self.targ_spin)
+
+        targ_group.setLayout(targ_layout)
+        main_layout.addWidget(targ_group)
 
         # Excited State Parameters
         excited_group = QGroupBox("Excited State Configuration")
@@ -609,49 +629,55 @@ class InelasticScatteringForm(QWidget):
 
     def load_preset(self):
         """Load preset example for 12C(α,α')12C* 2+ state"""
-        self.header.setText("Alpha + 12C inelastic to 2+ state at 4.439 MeV")
-        self.hcm.setValue(0.05)
-        self.rmatch.setValue(30.0)
-        self.thmax.setValue(180.0)
-        self.jtmax.setValue(60)
-        self.thinc.setValue(2.0)
-        self.elab.setValue(30.0)
+        # Use the same approach as ElasticScatteringForm
+        preset_input = """Alpha + 12C inelastic to 2+ state at 4.439 MeV
+NAMELIST
+ &FRESCO hcm=0.05 rmatch=30.0
+	 jtmin=0.0 jtmax=60 absend= 0.0010
+	 thmin=0.00 thmax=180.00 thinc=2.00
+ 	 chans=1 smats=2 xstabl=1
+	 elab(1:1)=30.0 nlab(1:1)=1 /
 
-        self.proj_name.setText("alpha")
-        self.proj_mass.setValue(4.0)
-        self.proj_charge.setValue(2.0)
+ &PARTITION namep='alpha' massp=4.0 zp=2
+ 	    namet='12C' masst=12.0 zt=6 qval=0.0 nex=1  /
+ &STATES jp=0.0 bandp=1 ep=0.0 cpot=1 jt=0.0 bandt=1 et=0.0  /
+ &partition /
 
-        self.targ_name.setText("12C")
-        self.targ_mass.setValue(12.0)
-        self.targ_charge.setValue(6.0)
+ &POT kp=1 type=0 ap=4.0 at=12.0 rc=1.25 /
+ &POT kp=1 type=1 p1=100.0 p2=1.17 p3=0.75 p4=25.0 p5=1.32 p6=0.51 /
+ &pot /
+ &overlap /
+ &coupling /
+"""
+        # Load using the same method as file loading
+        self.update_from_input_file(preset_input)
 
+        # Set inelastic-specific parameters
         self.exc_spin.setValue(2.0)
         self.exc_energy.setValue(4.439)
         self.lambda_multipolarity.setValue(2)
-
         self.beta.setValue(0.5)
         self.deform_radius.setValue(1.2)
 
-        # Reset potentials to default
-        self.pot_manager.reset_potentials()
+        # Expand POT group box
+        self.pot_manager.group_box.setChecked(True)
+        for pot_widget in self.pot_manager.potential_widgets:
+            pot_widget.group_box.setChecked(True)
 
     def generate_input(self):
         """Generate FRESCO input text for inelastic scattering"""
-        # Collect basic parameters for the &FRESCO namelist
-        basic_params = {
-            'hcm': self.hcm.value(),
-            'rmatch': self.rmatch.value(),
-            'thmax': self.thmax.value(),
-            'jtmax': self.jtmax.value(),
-            'thinc': self.thinc.value(),
-            'elab': self.elab.value(),
-            'chans': 1,
-            'smats': 2,
-            'xstabl': 1,
-        }
+        # Collect parameters from general parameters widget
+        general_params = self.general_params.get_parameter_values()
 
-        # Generate &FRESCO namelist with advanced parameters
-        fresco_namelist = self.advanced_params.generate_namelist_text(basic_params)
+        # Remove elab and nlab from general_params (handled by energy widget)
+        general_params_filtered = {k: v for k, v in general_params.items() if k not in ['elab', 'nlab']}
+
+        # Generate &FRESCO namelist with general and advanced parameters
+        fresco_namelist = self.advanced_params.generate_namelist_text(general_params_filtered)
+
+        # Insert energy array into the namelist (before the closing /)
+        energy_string = self.energy_widget.get_fresco_format()
+        fresco_namelist = fresco_namelist.rsplit('/', 1)[0] + f"     {energy_string} /"
 
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
@@ -661,15 +687,9 @@ class InelasticScatteringForm(QWidget):
 NAMELIST
 {fresco_namelist}
 
-&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 /
-
-&STATES jp=0.0 bandp=1 ep=0.0 cpot=1 jt=0.0 bandt=1 et=0.0 /
-
-&PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=-{self.exc_energy.value()} /
-
-&STATES jp=0.0 bandp=1 ep=0.0 cpot=2 jt={self.exc_spin.value()} bandt=2 et={self.exc_energy.value()} /
-
-&partition /
+ &PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 nex=1  /
+ &STATES jp={self.proj_spin.value()} bandp=1 ep=0.0 cpot=1 jt={self.targ_spin.value()} bandt=1 et=0.0  /
+ &partition /
 
 {pot_namelists}
 
@@ -677,7 +697,7 @@ NAMELIST
 
  &pot /
 
-&COUPLING icto=2 icfrom=1 kind=3 ip1=0 ip2=3 p1={self.lambda_multipolarity.value()} /
+&COUPLING icto=1 icfrom=1 kind=3 ip1=0 ip2=3 p1={self.lambda_multipolarity.value()} jt={self.exc_spin.value()} et={self.exc_energy.value()} /
 
  &coupling /
  &overlap /
