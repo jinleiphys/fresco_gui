@@ -229,6 +229,7 @@ class AdvancedParametersWidget(QWidget):
         form_layout.setContentsMargins(0, 0, 0, 0)
         form_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form_layout.setLabelAlignment(Qt.AlignLeft)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         # Create widgets for each parameter
         for param in parameters:

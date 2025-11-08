@@ -68,6 +68,7 @@ class DynamicGeneralParametersWidget(QWidget):
         self.form_layout = QFormLayout(self.content_widget)
         self.form_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         self.form_layout.setLabelAlignment(Qt.AlignLeft)
+        self.form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
         self.form_layout.setSpacing(8)
 
         # Build initial parameters
