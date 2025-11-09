@@ -364,8 +364,13 @@ class MainWindow(QMainWindow):
             self.log_widget.append_success("Calculation completed successfully!")
             self.status_bar.showMessage("Calculation completed")
 
-            # Load and display results
-            self.plot_widget.load_results(self.working_directory)
+            # Detect calculation type from input text
+            from parameter_manager import detect_calculation_type
+            input_text = self.input_panel.get_input_text()
+            calc_type = detect_calculation_type(input_text)
+
+            # Load and display results with calculation type
+            self.plot_widget.load_results(self.working_directory, calc_type)
 
             # Switch to plot tab
             self.right_tabs.setCurrentIndex(0)

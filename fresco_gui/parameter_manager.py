@@ -593,3 +593,116 @@ def detect_calculation_type(input_text: str) -> str:
     else:
         # Unable to determine, use default
         return "default"
+
+
+def parse_overlap_namelists(input_text: str) -> List[Dict[str, Any]]:
+    """
+    Parse &OVERLAP namelists from FRESCO input file
+
+    Returns:
+        List of dictionaries containing overlap parameters
+    """
+    import re
+
+    overlaps = []
+
+    # Find all &OVERLAP namelists (including empty ones as terminators)
+    pattern = r'&OVERLAP\s*(.*?)\s*/'
+    matches = re.findall(pattern, input_text, re.IGNORECASE | re.DOTALL)
+
+    for match_text in matches:
+        # Skip empty namelists (terminators)
+        if not match_text.strip():
+            continue
+
+        overlap_data = {}
+
+        # Parse key=value pairs
+        # Handle both integers, floats, and strings
+        kv_pattern = r'(\w+)\s*=\s*([^,\s]+)'
+        kv_matches = re.findall(kv_pattern, match_text, re.IGNORECASE)
+
+        for key, value in kv_matches:
+            key_lower = key.lower()
+
+            # Remove quotes from string values
+            value_clean = value.strip().strip("'\"")
+
+            # Convert to appropriate type
+            try:
+                # Try integer first
+                if '.' not in value_clean:
+                    overlap_data[key_lower] = int(value_clean)
+                else:
+                    # Float
+                    overlap_data[key_lower] = float(value_clean)
+            except ValueError:
+                # Keep as string (e.g., CH1)
+                overlap_data[key_lower] = value_clean
+
+        # Handle two-particle specific parameters (npairs, lmin, lmax, smin, etc.)
+        # Map to standard names used in widget
+        if 'npairs' in overlap_data:
+            overlap_data['nn'] = overlap_data.pop('npairs')
+        if 'lmin' in overlap_data:
+            overlap_data['l'] = overlap_data.pop('lmin')
+        if 'smin' in overlap_data:
+            overlap_data['sn'] = overlap_data.pop('smin')
+        if 'j12' in overlap_data:
+            overlap_data['jn'] = overlap_data.pop('j12')
+        if 't' in overlap_data:
+            overlap_data['kbpot'] = overlap_data.pop('t')
+        if 'knzr' in overlap_data:
+            overlap_data['krpot'] = overlap_data.pop('knzr')
+        if 'eps' in overlap_data:
+            overlap_data['be'] = overlap_data.pop('eps')
+
+        # Set defaults for missing parameters
+        if 'kn1' not in overlap_data:
+            overlap_data['kn1'] = 1
+        if 'kn2' not in overlap_data:
+            overlap_data['kn2'] = 0
+        if 'ic1' not in overlap_data:
+            overlap_data['ic1'] = 1
+        if 'ic2' not in overlap_data:
+            overlap_data['ic2'] = 2
+        if 'in' not in overlap_data:
+            overlap_data['in'] = 1
+        if 'kind' not in overlap_data:
+            overlap_data['kind'] = 0
+        if 'ch1' not in overlap_data:
+            overlap_data['ch1'] = 'A'
+        if 'nn' not in overlap_data:
+            overlap_data['nn'] = 1
+        if 'l' not in overlap_data:
+            overlap_data['l'] = 0
+        if 'lmax' not in overlap_data:
+            overlap_data['lmax'] = 0
+        if 'sn' not in overlap_data:
+            overlap_data['sn'] = 0.5
+        if 'ia' not in overlap_data:
+            overlap_data['ia'] = 1
+        if 'jn' not in overlap_data:
+            overlap_data['jn'] = 0.5
+        if 'ib' not in overlap_data:
+            overlap_data['ib'] = 1
+        if 'kbpot' not in overlap_data:
+            overlap_data['kbpot'] = 1
+        if 'krpot' not in overlap_data:
+            overlap_data['krpot'] = 0
+        if 'be' not in overlap_data:
+            overlap_data['be'] = 2.224
+        if 'isc' not in overlap_data:
+            overlap_data['isc'] = 0
+        if 'ipc' not in overlap_data:
+            overlap_data['ipc'] = 1
+        if 'nfl' not in overlap_data:
+            overlap_data['nfl'] = 0
+        if 'nam' not in overlap_data:
+            overlap_data['nam'] = 0
+        if 'ampl' not in overlap_data:
+            overlap_data['ampl'] = 1.0
+
+        overlaps.append(overlap_data)
+
+    return overlaps

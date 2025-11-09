@@ -19,7 +19,9 @@ class PlotWidget(QWidget):
         super().__init__()
         self.current_data = {}
         self.working_directory = None  # Store working directory for refresh
+        self.calculation_type = "elastic"  # Track calculation type (elastic/inelastic/transfer)
         self.energy_datasets = []  # Store multiple energy datasets from fort.201
+        self.energy_datasets_202 = []  # Store multiple energy datasets from fort.202 (inelastic/transfer)
         self.smatrix_datasets = []  # Store S-matrix datasets from fort.7
         self.phaseshift_datasets = []  # Store phase shift datasets from fort.45
         self.init_ui()
@@ -33,7 +35,7 @@ class PlotWidget(QWidget):
 
         self.plot_type = QComboBox()
         self.plot_type.addItems([
-            "Cross Section vs Angle",
+            "Elastic Scattering",
             "Cross Section vs Energy",
             "Phase Shifts",
             "S-Matrix Elements"
@@ -77,9 +79,37 @@ class PlotWidget(QWidget):
         # Initial plot
         self.clear_plot()
 
-    def load_results(self, working_dir=None):
+    def set_calculation_type(self, calc_type):
+        """Set the calculation type and update plot type labels"""
+        self.calculation_type = calc_type
+        self.update_plot_type_labels()
+
+    def update_plot_type_labels(self):
+        """Update plot type labels based on calculation type"""
+        current_selection = self.plot_type.currentIndex()
+
+        # Update the second plot type based on calculation type
+        self.plot_type.blockSignals(True)  # Prevent triggering update_plot
+
+        if self.calculation_type == "elastic":
+            self.plot_type.setItemText(0, "Elastic Scattering")
+        elif self.calculation_type == "inelastic":
+            self.plot_type.setItemText(0, "Inelastic Scattering")
+        elif self.calculation_type == "transfer":
+            self.plot_type.setItemText(0, "Transfer Reaction")
+        else:
+            self.plot_type.setItemText(0, "Angular Distribution")
+
+        self.plot_type.setCurrentIndex(current_selection)
+        self.plot_type.blockSignals(False)
+
+    def load_results(self, working_dir=None, calc_type=None):
         """Load results from FRESCO output files"""
         try:
+            # Update calculation type if provided
+            if calc_type is not None:
+                self.set_calculation_type(calc_type)
+
             # Store working directory for future refreshes
             if working_dir is not None:
                 self.working_directory = working_dir
@@ -114,8 +144,11 @@ class PlotWidget(QWidget):
 
             fort202 = os.path.join(self.working_directory, 'fort.202')
             if os.path.exists(fort202):
-                data = self.read_fort_file(fort202)
-                self.current_data['fort202'] = data
+                # Read multi-energy datasets for inelastic/transfer
+                self.energy_datasets_202 = self.read_fort201_multi_energy(fort202)
+                # Also keep single dataset for backward compatibility
+                if self.energy_datasets_202:
+                    self.current_data['fort202'] = self.energy_datasets_202[0]['data']
 
             # Read integrated cross sections from fort.39
             fort39 = os.path.join(self.working_directory, 'fort.39')
@@ -416,7 +449,7 @@ class PlotWidget(QWidget):
 
         plot_idx = self.plot_type.currentIndex()
 
-        if plot_idx == 0:  # Cross Section vs Angle
+        if plot_idx == 0:  # Elastic Scattering
             self.plot_angular_distribution(ax)
         elif plot_idx == 1:  # Cross Section vs Energy
             self.plot_energy_distribution(ax)
@@ -428,9 +461,21 @@ class PlotWidget(QWidget):
         self.canvas.draw()
 
     def plot_angular_distribution(self, ax):
-        """Plot angular distribution (supports multiple energies)"""
-        if not self.energy_datasets:
-            self._show_no_data(ax, 'fort.201')
+        """Plot angular distribution from fort.201 (supports multiple energies)"""
+        # Always use fort.201 for all calculation types
+        datasets = self.energy_datasets
+        source_file = 'fort.201'
+
+        # Set title prefix based on calculation type
+        if self.calculation_type == "elastic":
+            title_prefix = 'Elastic Scattering'
+        elif self.calculation_type == "inelastic":
+            title_prefix = 'Inelastic Scattering'
+        else:  # transfer
+            title_prefix = 'Transfer Reaction'
+
+        if not datasets:
+            self._show_no_data(ax, source_file)
             return
 
         # Color cycle for different energies
@@ -438,7 +483,7 @@ class PlotWidget(QWidget):
 
         if self.show_all_energies.isChecked():
             # Plot all energies
-            for i, dataset in enumerate(self.energy_datasets):
+            for i, dataset in enumerate(datasets):
                 energy = dataset['energy']
                 data = dataset['data']
                 if data is not None and len(data.shape) >= 2 and data.shape[1] >= 2:
@@ -450,8 +495,8 @@ class PlotWidget(QWidget):
         else:
             # Plot selected energy only
             idx = self.energy_selector.currentIndex()
-            if 0 <= idx < len(self.energy_datasets):
-                dataset = self.energy_datasets[idx]
+            if 0 <= idx < len(datasets):
+                dataset = datasets[idx]
                 energy = dataset['energy']
                 data = dataset['data']
                 if data is not None and len(data.shape) >= 2 and data.shape[1] >= 2:
@@ -461,7 +506,7 @@ class PlotWidget(QWidget):
 
         ax.set_xlabel('Angle (degrees)', fontsize=12)
         ax.set_ylabel('dσ/dΩ (mb/sr)', fontsize=12)
-        ax.set_title('Angular Distribution (CM Frame)', fontsize=14, fontweight='bold')
+        ax.set_title(f'{title_prefix} - Angular Distribution (CM Frame)', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
         ax.set_yscale('log')
 
@@ -602,6 +647,7 @@ class PlotWidget(QWidget):
         """Clear the plot"""
         self.current_data = {}
         self.energy_datasets = []
+        self.energy_datasets_202 = []
         self.smatrix_datasets = []
         self.phaseshift_datasets = []
         self.energy_selector.clear()
