@@ -1,4 +1,4 @@
-# FRESCO Quantum Studio
+# FRESCO Studio
 
 Modern graphical user interface for FRESCO coupled channels calculations.
 
@@ -191,6 +191,6 @@ Built with:
 - matplotlib for scientific plotting
 - Modern design inspired by macOS and web interfaces
 
-**FRESCO Quantum Studio** - A modern interface for quantum coupled channels calculations
+**FRESCO Studio** - A modern interface for quantum coupled channels calculations
 
 © 2024 FRESCO Team

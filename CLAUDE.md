@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FRESCO Quantum Studio is a modern graphical user interface for FRESCO (Finite Range Extended Search Code for coupled reaction channels), a quantum scattering calculation program. The project consists of a Python/PySide6 GUI wrapper (`fresco_gui/`) and the underlying FRESCO Fortran code (`fresco_code/`).
+FRESCO Studio is a modern graphical user interface for FRESCO (Finite Range Extended Search Code for coupled reaction channels), a quantum scattering calculation program. The project consists of a Python/PySide6 GUI wrapper (`fresco_gui/`) and the underlying FRESCO Fortran code (`fresco_code/`).
 
 ## Development Setup
 

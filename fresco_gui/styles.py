@@ -1,5 +1,5 @@
 """
-FRESCO Quantum Studio - Modern Design System
+FRESCO Studio - Modern Design System
 Professional, unified styling with light and dark themes
 """
 

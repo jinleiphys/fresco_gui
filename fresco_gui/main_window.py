@@ -1,5 +1,5 @@
 """
-Main window for FRESCO Quantum Studio application
+Main window for FRESCO Studio application
 """
 
 from PySide6.QtWidgets import (
@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         """Initialize the user interface"""
-        self.setWindowTitle("FRESCO Quantum Studio - Coupled Channels Calculations")
+        self.setWindowTitle("FRESCO Studio - Coupled Channels Calculations")
         self.setGeometry(100, 100, 1600, 900)
 
         # Apply modern styling (default: light theme, change to "dark" for dark theme)
@@ -388,7 +388,7 @@ class MainWindow(QMainWindow):
     def show_about(self):
         """Show about dialog"""
         about_text = """
-<h2>FRESCO Quantum Studio</h2>
+<h2>FRESCO Studio</h2>
 <p><b>Version 1.0.0</b></p>
 <p>Modern graphical interface for FRESCO coupled channels calculations</p>
 <br>
@@ -400,7 +400,7 @@ for coupled reaction channels</p>
 <p>Built with PySide6 and matplotlib</p>
 <p>© 2024 FRESCO Team</p>
 """
-        QMessageBox.about(self, "About FRESCO Quantum Studio", about_text)
+        QMessageBox.about(self, "About FRESCO Studio", about_text)
 
     def show_docs(self):
         """Show documentation link"""

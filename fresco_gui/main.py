@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FRESCO Quantum Studio - Modern interface for FRESCO quantum scattering calculations
+FRESCO Studio - Modern interface for FRESCO quantum scattering calculations
 """
 
 import sys
@@ -10,14 +10,14 @@ from main_window import MainWindow
 
 
 def main():
-    """Main entry point for the FRESCO Quantum Studio application"""
+    """Main entry point for the FRESCO Studio application"""
     # Enable high DPI scaling
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
 
     app = QApplication(sys.argv)
-    app.setApplicationName("FRESCO Quantum Studio")
+    app.setApplicationName("FRESCO Studio")
     app.setOrganizationName("FRESCO Team")
 
     # Set application-wide font

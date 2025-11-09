@@ -1,6 +1,6 @@
 # FRESCO Test Examples
 
-This directory contains test input files and reference outputs for the FRESCO Quantum Studio GUI.
+This directory contains test input files and reference outputs for the FRESCO Studio GUI.
 
 ## Test Cases
 
@@ -119,9 +119,9 @@ cat fort.201  # Angular distribution
 
 ### Using in GUI
 
-These examples are automatically loaded as presets in the FRESCO Quantum Studio Form Builder:
+These examples are automatically loaded as presets in the FRESCO Studio Form Builder:
 
-1. Open FRESCO Quantum Studio
+1. Open FRESCO Studio
 2. Go to "Form Builder" tab
 3. Select calculation type (Elastic/Inelastic/Transfer)
 4. Click "Load Preset Example" button
