@@ -14,6 +14,8 @@ from pot_widget import PotentialManagerWidget
 from parameter_manager import ParameterManager
 from dynamic_general_params_widget import DynamicGeneralParametersWidget
 from energy_array_widget import EnergyArrayWidget
+from states_widget import StatesManagerWidget
+from coupling_widget import CouplingManagerWidget
 
 
 class ElasticScatteringForm(QWidget):
@@ -394,7 +396,9 @@ class InelasticScatteringForm(QWidget):
         from parameter_manager import (
             parse_fresco_input_parameters,
             parse_fresco_parameter_values,
-            parse_partition_namelist
+            parse_partition_namelist,
+            parse_states_namelists,
+            parse_coupling_namelists
         )
 
         print("\n" + "="*60)
@@ -405,10 +409,14 @@ class InelasticScatteringForm(QWidget):
         file_params = parse_fresco_input_parameters(input_text)
         param_values = parse_fresco_parameter_values(input_text)
         partition_info = parse_partition_namelist(input_text)
+        states_list = parse_states_namelists(input_text)
+        coupling_list = parse_coupling_namelists(input_text)
 
         print(f"\n[InelasticForm] Parsed {len(file_params)} parameter names from file")
         print(f"\n[InelasticForm] Parsed {len(param_values)} parameter values from file")
         print(f"\n[InelasticForm] Parsed partition info")
+        print(f"\n[InelasticForm] Parsed {len(states_list)} states")
+        print(f"\n[InelasticForm] Parsed {len(coupling_list)} couplings")
 
         # Update parameter manager
         print(f"\n[InelasticForm] Updating parameter manager...")
@@ -467,6 +475,16 @@ class InelasticScatteringForm(QWidget):
         # Load POT information
         print(f"\n[InelasticForm] Loading POT information...")
         self.pot_manager.load_from_input_text(input_text)
+
+        # Load STATES information
+        print(f"\n[InelasticForm] Loading STATES information...")
+        if states_list:
+            self.states_manager.set_all_states_data(states_list)
+
+        # Load COUPLING information
+        print(f"\n[InelasticForm] Loading COUPLING information...")
+        if coupling_list:
+            self.coupling_manager.set_all_couplings_data(coupling_list)
 
         print(f"\n[InelasticForm] Update complete. Promoted parameters: {self.param_manager.get_categorization_summary()['promoted_params']}")
         print("="*60 + "\n")
@@ -577,62 +595,17 @@ class InelasticScatteringForm(QWidget):
         targ_group.setLayout(targ_layout)
         main_layout.addWidget(targ_group)
 
-        # Excited State Parameters
-        excited_group = QGroupBox("Excited State Configuration")
-        excited_layout = QFormLayout()
-        excited_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        excited_layout.setLabelAlignment(Qt.AlignLeft)
-        excited_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
-
-        self.exc_spin = QDoubleSpinBox()
-        self.exc_spin.setRange(0.0, 20.0)
-        self.exc_spin.setSingleStep(0.5)
-        self.exc_spin.setValue(2.0)
-        self.exc_spin.setToolTip("Spin of the excited state (e.g., 2+ state = 2.0)")
-        excited_layout.addRow("Excited state spin:", self.exc_spin)
-
-        self.exc_energy = QDoubleSpinBox()
-        self.exc_energy.setRange(0.0, 50.0)
-        self.exc_energy.setDecimals(3)
-        self.exc_energy.setValue(4.439)
-        self.exc_energy.setToolTip("Excitation energy in MeV")
-        excited_layout.addRow("Excitation energy (MeV):", self.exc_energy)
-
-        self.lambda_multipolarity = QSpinBox()
-        self.lambda_multipolarity.setRange(0, 10)
-        self.lambda_multipolarity.setValue(2)
-        self.lambda_multipolarity.setToolTip("Multipolarity of transition (λ)")
-        excited_layout.addRow("Multipolarity (λ):", self.lambda_multipolarity)
-
-        excited_group.setLayout(excited_layout)
-        main_layout.addWidget(excited_group)
-
-        # Deformation Parameters
-        deform_group = QGroupBox("Collective Model / Deformation")
-        deform_layout = QFormLayout()
-        deform_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        deform_layout.setLabelAlignment(Qt.AlignLeft)
-        deform_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
-
-        self.beta = QDoubleSpinBox()
-        self.beta.setRange(0.0, 2.0)
-        self.beta.setDecimals(4)
-        self.beta.setValue(0.5)
-        self.beta.setToolTip("Deformation parameter β")
-        deform_layout.addRow("Deformation β:", self.beta)
-
-        self.deform_radius = QDoubleSpinBox()
-        self.deform_radius.setRange(0.1, 5.0)
-        self.deform_radius.setDecimals(2)
-        self.deform_radius.setValue(1.2)
-        deform_layout.addRow("Deformation radius (fm):", self.deform_radius)
-
-        deform_group.setLayout(deform_layout)
-        main_layout.addWidget(deform_group)
+        # States Manager (ground state + excited states)
+        self.states_manager = StatesManagerWidget()
+        main_layout.addWidget(self.states_manager)
 
         # Optical Potentials Manager
         self.pot_manager = PotentialManagerWidget()
         main_layout.addWidget(self.pot_manager)
+
+        # Coupling Manager (how states are coupled)
+        self.coupling_manager = CouplingManagerWidget()
+        main_layout.addWidget(self.coupling_manager)
 
         # Advanced FRESCO Parameters (with parameter manager)
         self.advanced_params = AdvancedParametersWidget(parameter_manager=self.param_manager)
@@ -649,7 +622,7 @@ class InelasticScatteringForm(QWidget):
     def load_preset(self):
         """Load preset example for 12C(α,α')12C* 2+ state"""
         # Use the same approach as ElasticScatteringForm
-        # Based on B2-example-inel2.in
+        # Based on B2-example-inel2.in with proper COUPLING
         preset_input = """alpha+c12 -> alpha+c12* @ 100 MeV; nuc def
 NAMELIST
  &FRESCO hcm=0.05 rmatch=20.0
@@ -671,22 +644,24 @@ NAMELIST
  &POT kp=1 type=11 p2=1.3 /
  &pot /
  &overlap /
+ &COUPLING kind=11 icfrom=1 icto=2 ip1=3 ip2=0 lambda=2 jbeta=0.5 /
  &coupling /
 """
         # Load using the same method as file loading
         self.update_from_input_file(preset_input)
 
-        # Set inelastic-specific parameters
-        self.exc_spin.setValue(2.0)
-        self.exc_energy.setValue(4.43)
-        self.lambda_multipolarity.setValue(2)
-        self.beta.setValue(0.5)
-        self.deform_radius.setValue(1.3)
-
-        # Expand POT group box
+        # Expand relevant group boxes
         self.pot_manager.group_box.setChecked(True)
         for pot_widget in self.pot_manager.potential_widgets:
             pot_widget.group_box.setChecked(True)
+
+        self.states_manager.group_box.setChecked(True)
+        for state_widget in self.states_manager.state_widgets:
+            state_widget.group_box.setChecked(True)
+
+        self.coupling_manager.group_box.setChecked(True)
+        for coupling_widget in self.coupling_manager.coupling_widgets:
+            coupling_widget.group_box.setChecked(True)
 
     def generate_input(self):
         """Generate FRESCO input text for inelastic scattering"""
@@ -706,20 +681,28 @@ NAMELIST
         # Generate &POT namelists from potential manager
         pot_namelists = self.pot_manager.generate_pot_namelists()
 
+        # Generate &STATES namelists from states manager
+        states_namelists = self.states_manager.generate_states_namelists()
+
+        # Generate &COUPLING namelists from coupling manager
+        coupling_namelists = self.coupling_manager.generate_couplings_namelists()
+
+        # Get NEX (number of excited states)
+        nex = self.states_manager.get_nex()
+
         # Build complete input file (single-line header as required by FRESCO)
         input_text = f"""{self.header.text()}
 NAMELIST
 {fresco_namelist}
 
- &PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 nex=2  /
- &STATES jp={self.proj_spin.value()} bandp=1 ep=0.0 cpot=1 jt={self.targ_spin.value()} bandt=1 et=0.0 /
- &STATES copyp=1 cpot=1 jt={self.exc_spin.value()} bandt=1 et={self.exc_energy.value()} /
+ &PARTITION namep='{self.proj_name.text()}' massp={self.proj_mass.value()} zp={self.proj_charge.value()} namet='{self.targ_name.text()}' masst={self.targ_mass.value()} zt={self.targ_charge.value()} qval=0.0 nex={nex}  /
+{states_namelists}
  &partition /
 
 {pot_namelists}
- &POT kp=1 type=11 p2={self.deform_radius.value()} /
  &pot /
  &overlap /
+{coupling_namelists}
  &coupling /
 
 ! Generated by FRESCO Quantum Studio (Form Builder)

@@ -407,7 +407,16 @@ class PotNamelist:
         # Format each parameter
         for param_name, value in param_values.items():
             param = self.get_parameter(param_name)
+
+            # Handle parameters not in definitions (like kp, type, shape, p1-p6, etc.)
             if param is None:
+                # Still output common FRESCO parameters even if not in our definitions
+                if param_name in ['kp', 'type', 'shape', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6',
+                                   'ap', 'at', 'rc', 'ac']:
+                    if isinstance(value, int) or (isinstance(value, float) and value == int(value)):
+                        parts.append(f"{param_name}={int(value)}")
+                    else:
+                        parts.append(f"{param_name}={value}")
                 continue
 
             # Format based on parameter type

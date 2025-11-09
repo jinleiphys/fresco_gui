@@ -414,6 +414,129 @@ def parse_pot_namelists(input_text: str) -> list:
     return pot_list
 
 
+def parse_states_namelists(input_text: str) -> list:
+    """
+    Parse all &STATES namelists from FRESCO input file
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        List of dictionaries, each containing STATES parameters
+    """
+    import re
+
+    states_list = []
+
+    # Find all &STATES namelists
+    pattern = r'&STATES\s+(.*?)\s*/'
+    matches = re.findall(pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    for match in matches:
+        # Skip empty STATES namelists
+        if not match.strip():
+            continue
+
+        states_params = {}
+
+        # Parse all possible parameters
+        params_to_extract = {
+            'jp': float,
+            'copyp': int,
+            'bandp': int,
+            'ep': float,
+            'kkp': float,
+            'tp': float,
+            'jt': float,
+            'copyt': int,
+            'bandt': int,
+            'et': float,
+            'kkt': float,
+            'tt': float,
+            'kp': int,
+            'cpot': int,
+        }
+
+        for param_name, param_type in params_to_extract.items():
+            param_pattern = rf'{param_name}\s*=\s*([^\s,]+)'
+            param_match = re.search(param_pattern, match, re.IGNORECASE)
+
+            if param_match:
+                try:
+                    value_str = param_match.group(1).strip()
+                    states_params[param_name] = param_type(value_str)
+                except (ValueError, AttributeError):
+                    pass
+
+        # Parse boolean parameters
+        bool_params = ['fexch', 'ignore']
+        for param_name in bool_params:
+            param_pattern = rf'{param_name}\s*=\s*([TF])'
+            param_match = re.search(param_pattern, match, re.IGNORECASE)
+            if param_match:
+                states_params[param_name] = param_match.group(1).upper() == 'T'
+
+        if states_params:
+            states_list.append(states_params)
+
+    return states_list
+
+
+def parse_coupling_namelists(input_text: str) -> list:
+    """
+    Parse all &COUPLING namelists from FRESCO input file
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        List of dictionaries, each containing COUPLING parameters
+    """
+    import re
+
+    coupling_list = []
+
+    # Find all &COUPLING namelists
+    pattern = r'&COUPLING\s+(.*?)\s*/'
+    matches = re.findall(pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    for match in matches:
+        # Skip empty COUPLING namelists
+        if not match.strip():
+            continue
+
+        coupling_params = {}
+
+        # Parse all possible parameters
+        params_to_extract = {
+            'kind': int,
+            'icfrom': int,
+            'icto': int,
+            'iafrom': int,
+            'iato': int,
+            'ip1': int,
+            'ip2': int,
+            'lambda': int,
+            'jbeta': float,
+        }
+
+        for param_name, param_type in params_to_extract.items():
+            param_pattern = rf'{param_name}\s*=\s*([^\s,]+)'
+            param_match = re.search(param_pattern, match, re.IGNORECASE)
+
+            if param_match:
+                try:
+                    value_str = param_match.group(1).strip()
+                    coupling_params[param_name] = param_type(value_str)
+                except (ValueError, AttributeError):
+                    pass
+
+        if coupling_params:
+            coupling_list.append(coupling_params)
+
+    return coupling_list
+
+
 def detect_calculation_type(input_text: str) -> str:
     """
     Automatically detect the type of FRESCO calculation from input file
@@ -449,18 +572,24 @@ def detect_calculation_type(input_text: str) -> str:
     has_overlap = has_content_namelist('OVERLAP', input_text)
 
     # Detection logic
+    # Key insight: Number of STATES is the most important indicator:
+    # - Elastic: 1 STATE (ground state only)
+    # - Inelastic: 2+ STATES (ground + excited states)
+    # - Transfer: Multiple PARTITIONs or has OVERLAP
+
     if has_overlap:
         # Has non-empty OVERLAP → Transfer reaction
         return "transfer"
-    elif has_coupling and partition_count == 1:
-        # Has non-empty COUPLING but only one PARTITION → Inelastic scattering
-        return "inelastic"
-    elif partition_count == 1 and states_count <= 2 and not has_coupling:
-        # Single PARTITION, 1-2 STATES, no COUPLING → Elastic scattering
-        return "elastic"
     elif partition_count > 1:
-        # Multiple PARTITIONs → could be transfer
+        # Multiple PARTITIONs → Transfer reaction
         return "transfer"
+    elif states_count >= 2:
+        # Multiple STATES (ground + excited) → Inelastic scattering
+        # Note: COUPLING may be empty in the input file but still inelastic
+        return "inelastic"
+    elif partition_count == 1 and states_count == 1:
+        # Single PARTITION, single STATE → Elastic scattering
+        return "elastic"
     else:
         # Unable to determine, use default
         return "default"

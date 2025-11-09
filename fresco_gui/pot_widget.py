@@ -54,6 +54,7 @@ class SinglePotentialWidget(QWidget):
         self.type_combo.addItem("Spin-orbit (proj)", 3)
         self.type_combo.addItem("Spin-orbit (targ)", 4)
         self.type_combo.addItem("Deformation", 8)
+        self.type_combo.addItem("Deformation (TYPE=11)", 11)
         self.type_combo.currentIndexChanged.connect(self.on_type_changed)
         header_layout.addWidget(self.type_combo, 1)
 
@@ -136,6 +137,10 @@ class SinglePotentialWidget(QWidget):
             self.add_spinorbit_params()
         elif pot_type == 8:  # Deformation
             self.add_deformation_params()
+        elif pot_type == 11:  # Deformation (TYPE=11)
+            # For TYPE=11, typically only p2 (radius) is specified
+            self.add_parameter_widget("vr0", "Deformation radius (p2, fm):",
+                                       "Radius parameter for deformation", 1.3, 0.1, 5.0, 0.01)
 
     def add_to_grid(self, label, widget):
         """Add a label-widget pair to the grid layout (2 columns)"""
@@ -235,7 +240,7 @@ class SinglePotentialWidget(QWidget):
     def get_pot_values(self):
         """
         Get current parameter values as dictionary
-        Returns values in FRESCO p(1:n) format for proper namelist generation
+        Returns values in FRESCO format (ap/at/rc for TYPE=0, p1-p6 for others)
         """
         values = {}
 
@@ -244,15 +249,12 @@ class SinglePotentialWidget(QWidget):
         values["type"] = pot_type
 
         # Define reverse mapping from user-friendly names to p1, p2, p3...
-        # This ensures FRESCO gets the p(1:n) array format it expects
+        # TYPE=0 (Coulomb) uses ap/at/rc/ac (NO mapping to p1/p2/p3)
+        # TYPE=1,2,3,etc use p1-p6
         reverse_mapping = {}
 
-        if pot_type == 0:  # Coulomb
-            reverse_mapping = {
-                'ap': 'p1',   # Projectile mass number
-                'at': 'p2',   # Target parameter
-                'rc': 'p3',   # Coulomb radius parameter
-            }
+        if pot_type == 0:  # Coulomb - NO reverse mapping, keep ap/at/rc/ac
+            reverse_mapping = {}  # Keep original names
         elif pot_type == 1:  # Volume
             reverse_mapping = {
                 'v':    'p1',  # Real depth V
@@ -267,18 +269,22 @@ class SinglePotentialWidget(QWidget):
                 'v':    'p1',  # Real depth V
                 'vr0':  'p2',  # Real radius r0
                 'va':   'p3',  # Real diffuseness a
-                'w':    'p4',  # Imaginary depth W
-                'wr0':  'p5',  # Imaginary radius r0W
-                'wa':   'p6',  # Imaginary diffuseness aW
+                'wd':   'p4',  # Surface imaginary depth WD
+                'wdr0': 'p5',  # Surface imaginary radius r0D
+                'awd':  'p6',  # Surface imaginary diffuseness aD
             }
         elif pot_type == 3:  # Spin-orbit
             reverse_mapping = {
-                'vso':    'p1',  # Real S.O. strength
-                'vsor0':  'p2',  # Real S.O. radius
-                'vsoa':   'p3',  # Real S.O. diffuseness
-                'wso':    'p4',  # Imaginary S.O. strength
-                'wsor0':  'p5',  # Imaginary S.O. radius
-                'wsoa':   'p6',  # Imaginary S.O. diffuseness
+                'vso':   'p1',  # Real S.O. strength
+                'rso0':  'p2',  # Real S.O. radius
+                'aso':   'p3',  # Real S.O. diffuseness
+                'wso':   'p4',  # Imaginary S.O. strength
+                'wsor0': 'p5',  # Imaginary S.O. radius
+                'wsoa':  'p6',  # Imaginary S.O. diffuseness
+            }
+        elif pot_type == 11:  # Deformation
+            reverse_mapping = {
+                'vr0':  'p2',  # Deformation radius parameter (most common usage)
             }
 
         # Add all parameter values with mapping
@@ -352,18 +358,22 @@ class SinglePotentialWidget(QWidget):
                 'p1': 'v',      # Real depth V
                 'p2': 'vr0',    # Real radius r0
                 'p3': 'va',     # Real diffuseness a
-                'p4': 'w',      # Imaginary depth W
-                'p5': 'wr0',    # Imaginary radius r0W
-                'p6': 'wa',     # Imaginary diffuseness aW
+                'p4': 'wd',     # Surface imaginary depth WD
+                'p5': 'wdr0',   # Surface imaginary radius r0D
+                'p6': 'awd',    # Surface imaginary diffuseness aD
             }
         elif pot_type == 3:  # Spin-orbit
             param_mapping = {
                 'p1': 'vso',    # Real S.O. strength
-                'p2': 'vsor0',  # Real S.O. radius
-                'p3': 'vsoa',   # Real S.O. diffuseness
+                'p2': 'rso0',   # Real S.O. radius
+                'p3': 'aso',    # Real S.O. diffuseness
                 'p4': 'wso',    # Imaginary S.O. strength
                 'p5': 'wsor0',  # Imaginary S.O. radius
                 'p6': 'wsoa',   # Imaginary S.O. diffuseness
+            }
+        elif pot_type == 11:  # Deformation (TYPE=11)
+            param_mapping = {
+                'p2': 'vr0',    # Deformation radius parameter
             }
         # For other types (deformation, etc.), we don't map p1-p6
 
