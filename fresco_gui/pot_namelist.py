@@ -221,13 +221,13 @@ class PotNamelist:
         params["wr0"] = PotParameter(
             "wr0", "Imaginary radius r0W (fm)",
             "Equivalent to p5: radius parameter for imaginary potential",
-            default=1.2, step=0.01, minimum=0.1, maximum=5.0, category="volume"
+            default=1.2, step=0.01, minimum=0.0, maximum=5.0, category="volume"
         )
 
         params["wa"] = PotParameter(
             "wa", "Imaginary diffuseness aW (fm)",
             "Equivalent to p6: diffuseness for imaginary potential",
-            default=0.65, step=0.01, minimum=0.1, maximum=2.0, category="volume"
+            default=0.65, step=0.01, minimum=0.0, maximum=2.0, category="volume"
         )
 
         # ========== Surface Potential Parameters ==========
@@ -240,13 +240,13 @@ class PotNamelist:
         params["wdr0"] = PotParameter(
             "wdr0", "Surface imaginary radius r0D",
             "Radius parameter for surface imaginary potential (fm)",
-            default=1.2, step=0.01, minimum=0.1, maximum=5.0, category="surface"
+            default=1.2, step=0.01, minimum=0.0, maximum=5.0, category="surface"
         )
 
         params["awd"] = PotParameter(
             "awd", "Surface imaginary diffuseness aD",
             "Diffuseness parameter for surface imaginary potential (fm)",
-            default=0.65, step=0.01, minimum=0.1, maximum=2.0, category="surface"
+            default=0.65, step=0.01, minimum=0.0, maximum=2.0, category="surface"
         )
 
         # ========== Spin-Orbit Parameters ==========
@@ -404,19 +404,37 @@ class PotNamelist:
 
         parts = ["&POT"]
 
-        # Format each parameter
+        # Output kp, type, shape first (kp is the identifier)
+        for key in ['kp', 'type', 'shape']:
+            if key in param_values:
+                value = param_values[key]
+                if isinstance(value, int) or (isinstance(value, float) and value == int(value)):
+                    parts.append(f"{key}={int(value)}")
+                else:
+                    parts.append(f"{key}={value}")
+
+        # Format remaining parameters
         for param_name, value in param_values.items():
+            # Skip already processed
+            if param_name in ['kp', 'type', 'shape']:
+                continue
             param = self.get_parameter(param_name)
 
-            # Handle parameters not in definitions (like kp, type, shape, p1-p6, etc.)
+            # Handle parameters not in definitions (like ap, at, rc, p1-p6, etc.)
             if param is None:
                 # Still output common FRESCO parameters even if not in our definitions
-                if param_name in ['kp', 'type', 'shape', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6',
-                                   'ap', 'at', 'rc', 'ac']:
+                if param_name in ['ap', 'at', 'rc', 'ac']:
                     if isinstance(value, int) or (isinstance(value, float) and value == int(value)):
                         parts.append(f"{param_name}={int(value)}")
                     else:
                         parts.append(f"{param_name}={value}")
+                # For p1-p6, only output if value is not 0 (skip default/zero values)
+                elif param_name in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']:
+                    if value != 0 and value is not None:
+                        if isinstance(value, int) or (isinstance(value, float) and value == int(value)):
+                            parts.append(f"{param_name}={int(value)}")
+                        else:
+                            parts.append(f"{param_name}={value}")
                 continue
 
             # Format based on parameter type

@@ -335,6 +335,75 @@ def parse_partition_namelist(input_text: str) -> dict:
     return partition_info
 
 
+def parse_all_partition_namelists(input_text: str) -> list:
+    """
+    Parse all &PARTITION namelists from FRESCO input file
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        List of dictionaries, each containing partition parameters
+    """
+    import re
+
+    partition_list = []
+
+    # Find all &PARTITION namelists (but not the terminator)
+    pattern = r'&PARTITION\s+(.*?)\s*/'
+    matches = re.findall(pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    for namelist_content in matches:
+        # Skip empty namelists (terminators)
+        if not namelist_content.strip():
+            continue
+
+        partition_info = {}
+
+        # Extract each parameter
+        params_to_extract = {
+            'namep': str,
+            'massp': float,
+            'zp': float,
+            'jp': float,
+            'namet': str,
+            'masst': float,
+            'zt': float,
+            'jt': float,
+            'qval': float,
+            'nex': int,
+        }
+
+        for param_name, param_type in params_to_extract.items():
+            # Pattern to match parameter=value
+            if param_type == str:
+                # For strings, match quoted values or unquoted values
+                param_pattern = rf'{param_name}\s*=\s*(["\'])(.*?)\1|{param_name}\s*=\s*([^\s,]+)'
+            else:
+                # For numbers, match unquoted numeric values
+                param_pattern = rf'{param_name}\s*=\s*([^\s,]+)'
+
+            param_match = re.search(param_pattern, namelist_content, re.IGNORECASE)
+
+            if param_match:
+                try:
+                    if param_type == str:
+                        # For quoted strings, group(2) has the content
+                        # For unquoted strings, group(3) has the content
+                        value_str = param_match.group(2) if param_match.group(2) is not None else param_match.group(3)
+                        if value_str:
+                            partition_info[param_name] = value_str.strip()
+                    else:
+                        value_str = param_match.group(1).strip()
+                        partition_info[param_name] = param_type(value_str)
+                except (ValueError, AttributeError) as e:
+                    print(f"Warning: Could not parse {param_name}: {e}")
+
+        partition_list.append(partition_info)
+
+    return partition_list
+
+
 def parse_pot_namelists(input_text: str) -> list:
     """
     Parse all &POT namelists from FRESCO input file
@@ -648,6 +717,9 @@ def parse_overlap_namelists(input_text: str) -> List[Dict[str, Any]]:
             overlap_data['l'] = overlap_data.pop('lmin')
         if 'smin' in overlap_data:
             overlap_data['sn'] = overlap_data.pop('smin')
+        # Map 'j' to 'jn' (FRESCO sometimes uses 'j' instead of 'jn')
+        if 'j' in overlap_data:
+            overlap_data['jn'] = overlap_data.pop('j')
         if 'j12' in overlap_data:
             overlap_data['jn'] = overlap_data.pop('j12')
         if 't' in overlap_data:
@@ -685,7 +757,9 @@ def parse_overlap_namelists(input_text: str) -> List[Dict[str, Any]]:
         if 'jn' not in overlap_data:
             overlap_data['jn'] = 0.5
         if 'ib' not in overlap_data:
-            overlap_data['ib'] = 1
+            # For kind=0 (one-body), ib defaults to 0
+            # For kind>=3 (stripping/pickup), ib defaults to 1
+            overlap_data['ib'] = 0 if overlap_data.get('kind', 0) == 0 else 1
         if 'kbpot' not in overlap_data:
             overlap_data['kbpot'] = 1
         if 'krpot' not in overlap_data:

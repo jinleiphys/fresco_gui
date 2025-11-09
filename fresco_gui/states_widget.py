@@ -200,7 +200,7 @@ class SingleStateWidget(QWidget):
         # Build namelist string
         parts = []
         parts.append(f"jp={data['jp']}")
-        if data['copyp'] is not None:
+        if data['copyp'] is not None and data['copyp'] > 0:
             parts.append(f"copyp={data['copyp']}")
         parts.append(f"bandp={data['bandp']}")
         parts.append(f"ep={data['ep']}")
@@ -208,7 +208,7 @@ class SingleStateWidget(QWidget):
         parts.append(f"cpot={data['cpot']}")
 
         parts.append(f"jt={data['jt']}")
-        if data['copyt'] is not None:
+        if data['copyt'] is not None and data['copyt'] > 0:
             parts.append(f"copyt={data['copyt']}")
         parts.append(f"bandt={data['bandt']}")
         parts.append(f"et={data['et']}")

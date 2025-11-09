@@ -353,6 +353,7 @@ class OverlapManagerWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setMinimumHeight(600)  # Increased height for better visibility
 
         scroll_widget = QWidget()
         self.overlaps_layout = QVBoxLayout(scroll_widget)
@@ -435,7 +436,9 @@ class OverlapManagerWidget(QWidget):
             # One/two-particle parameters
             if overlap_data['kind'] < 6:
                 # One-particle
-                params.append(f"ch1='{overlap_data['ch1']}'")
+                # Only output ch1 if it's not the default 'A'
+                if overlap_data['ch1'] != 'A':
+                    params.append(f"ch1='{overlap_data['ch1']}'")
                 params.append(f"nn={overlap_data['nn']}")
                 params.append(f"l={overlap_data['l']}")
                 if overlap_data['lmax'] > 0:
@@ -448,9 +451,12 @@ class OverlapManagerWidget(QWidget):
                 params.append(f"lmax={overlap_data['lmax']}")
                 params.append(f"smin={overlap_data['sn']}")
 
-            params.append(f"ia={overlap_data['ia']}")
-            params.append(f"jn={overlap_data['jn']}")
-            params.append(f"ib={overlap_data['ib']}")
+            # Output ia/ib for kind>=3 (stripping/pickup), but not for kind=0
+            if overlap_data['kind'] >= 3:
+                params.append(f"ia={overlap_data['ia']}")
+                params.append(f"ib={overlap_data['ib']}")
+
+            params.append(f"j={overlap_data['jn']}")  # Use 'j' instead of 'jn' for FRESCO compatibility
 
             # Binding parameters
             if overlap_data['kind'] < 6:

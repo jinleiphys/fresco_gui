@@ -147,7 +147,7 @@ class EnergyArrayWidget(QWidget):
 
         # Energy boundary spinbox
         energy_spin = QDoubleSpinBox()
-        energy_spin.setRange(0.1, 10000.0)
+        energy_spin.setRange(0.0, 10000.0)
         energy_spin.setDecimals(3)
         energy_spin.setValue(energy)
         energy_spin.setMinimumHeight(32)  # Ensure spinbox has enough height
@@ -281,7 +281,8 @@ class EnergyArrayWidget(QWidget):
             return f"elab={boundaries[0]:.3f}"
 
         # Multiple boundaries - array format
-        elab_values = " ".join(f"{e:.3f}" for e in boundaries)
+        # Format energy values: use integer format for 0, otherwise use 3 decimals
+        elab_values = " ".join(f"{int(e)}" if e == 0 else f"{e:.3f}" for e in boundaries)
         nlab_values = " ".join(str(n) for n in intervals)
         n_boundaries = len(boundaries)
         n_intervals = len(intervals)

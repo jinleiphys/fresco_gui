@@ -368,9 +368,11 @@ class MainWindow(QMainWindow):
             from parameter_manager import detect_calculation_type
             input_text = self.input_panel.get_input_text()
             calc_type = detect_calculation_type(input_text)
+            print(f"[MainWindow] Detected calculation type: {calc_type}", flush=True)
 
             # Load and display results with calculation type
             self.plot_widget.load_results(self.working_directory, calc_type)
+            print(f"[MainWindow] Plot widget calculation_type is now: {self.plot_widget.calculation_type}", flush=True)
 
             # Switch to plot tab
             self.right_tabs.setCurrentIndex(0)

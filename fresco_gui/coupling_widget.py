@@ -229,6 +229,7 @@ class CouplingManagerWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setMinimumHeight(600)  # Increased height for better visibility
 
         self.couplings_container = QWidget()
         self.couplings_layout = QVBoxLayout(self.couplings_container)

@@ -114,7 +114,7 @@ class FrescoNamelist:
         params["hcm"] = FrescoParameter(
             "hcm", "Integration step size (hcm)",
             "Step size for integration in center-of-mass frame. Smaller values give more accurate results (typical: 0.05-0.1)",
-            default=0.1, step=0.01, minimum=0.001, maximum=1.0, category="radial"
+            default=0.1, step=0.0001, minimum=0.0001, maximum=1.0, category="radial"
         )
 
         params["rmatch"] = FrescoParameter(

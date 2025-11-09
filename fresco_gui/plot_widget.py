@@ -35,7 +35,8 @@ class PlotWidget(QWidget):
 
         self.plot_type = QComboBox()
         self.plot_type.addItems([
-            "Elastic Scattering",
+            "Elastic Scattering (fort.201)",
+            "Inelastic/Transfer (fort.202)",
             "Cross Section vs Energy",
             "Phase Shifts",
             "S-Matrix Elements"
@@ -86,22 +87,8 @@ class PlotWidget(QWidget):
 
     def update_plot_type_labels(self):
         """Update plot type labels based on calculation type"""
-        current_selection = self.plot_type.currentIndex()
-
-        # Update the second plot type based on calculation type
-        self.plot_type.blockSignals(True)  # Prevent triggering update_plot
-
-        if self.calculation_type == "elastic":
-            self.plot_type.setItemText(0, "Elastic Scattering")
-        elif self.calculation_type == "inelastic":
-            self.plot_type.setItemText(0, "Inelastic Scattering")
-        elif self.calculation_type == "transfer":
-            self.plot_type.setItemText(0, "Transfer Reaction")
-        else:
-            self.plot_type.setItemText(0, "Angular Distribution")
-
-        self.plot_type.setCurrentIndex(current_selection)
-        self.plot_type.blockSignals(False)
+        # Labels are now fixed, no need to update dynamically
+        pass
 
     def load_results(self, working_dir=None, calc_type=None):
         """Load results from FRESCO output files"""
@@ -130,8 +117,10 @@ class PlotWidget(QWidget):
 
             fort201 = os.path.join(self.working_directory, 'fort.201')
             if os.path.exists(fort201):
+                print(f"[PlotWidget] Reading fort.201 from {fort201}", flush=True)
                 # Read multi-energy datasets
                 self.energy_datasets = self.read_fort201_multi_energy(fort201)
+                print(f"[PlotWidget] Found {len(self.energy_datasets)} energy datasets in fort.201", flush=True)
                 # Also keep single dataset for backward compatibility
                 if self.energy_datasets:
                     self.current_data['fort201'] = self.energy_datasets[0]['data']
@@ -141,14 +130,24 @@ class PlotWidget(QWidget):
                 for dataset in self.energy_datasets:
                     energy = dataset['energy']
                     self.energy_selector.addItem(f"{energy:.4f} MeV")
+                    print(f"[PlotWidget] Added energy: {energy:.4f} MeV with {len(dataset['data'])} data points", flush=True)
+            else:
+                print(f"[PlotWidget] fort.201 not found at {fort201}", flush=True)
 
             fort202 = os.path.join(self.working_directory, 'fort.202')
             if os.path.exists(fort202):
+                print(f"[PlotWidget] Reading fort.202 from {fort202}", flush=True)
                 # Read multi-energy datasets for inelastic/transfer
                 self.energy_datasets_202 = self.read_fort201_multi_energy(fort202)
+                print(f"[PlotWidget] Found {len(self.energy_datasets_202)} energy datasets in fort.202", flush=True)
                 # Also keep single dataset for backward compatibility
                 if self.energy_datasets_202:
                     self.current_data['fort202'] = self.energy_datasets_202[0]['data']
+                    for dataset in self.energy_datasets_202:
+                        energy = dataset['energy']
+                        print(f"[PlotWidget] fort.202 energy: {energy:.4f} MeV with {len(dataset['data'])} data points", flush=True)
+            else:
+                print(f"[PlotWidget] fort.202 not found at {fort202}", flush=True)
 
             # Read integrated cross sections from fort.39
             fort39 = os.path.join(self.working_directory, 'fort.39')
@@ -449,33 +448,64 @@ class PlotWidget(QWidget):
 
         plot_idx = self.plot_type.currentIndex()
 
-        if plot_idx == 0:  # Elastic Scattering
-            self.plot_angular_distribution(ax)
-        elif plot_idx == 1:  # Cross Section vs Energy
+        if plot_idx == 0:  # Angular Distribution (fort.201)
+            self.plot_angular_distribution_201(ax)
+        elif plot_idx == 1:  # Inelastic/Transfer (fort.202)
+            self.plot_angular_distribution_202(ax)
+        elif plot_idx == 2:  # Cross Section vs Energy
             self.plot_energy_distribution(ax)
-        elif plot_idx == 2:  # Phase Shifts
+        elif plot_idx == 3:  # Phase Shifts
             self.plot_phaseshift(ax)
-        elif plot_idx == 3:  # S-Matrix Elements
+        elif plot_idx == 4:  # S-Matrix Elements
             self.plot_smatrix(ax)
 
         self.canvas.draw()
 
-    def plot_angular_distribution(self, ax):
-        """Plot angular distribution from fort.201 (supports multiple energies)"""
-        # Always use fort.201 for all calculation types
-        datasets = self.energy_datasets
-        source_file = 'fort.201'
+    def plot_angular_distribution_201(self, ax):
+        """Plot angular distribution from fort.201 (elastic channel)"""
+        print(f"[PlotWidget] plot_angular_distribution_201 called, calculation_type={self.calculation_type}", flush=True)
 
         # Set title prefix based on calculation type
         if self.calculation_type == "elastic":
             title_prefix = 'Elastic Scattering'
         elif self.calculation_type == "inelastic":
-            title_prefix = 'Inelastic Scattering'
+            title_prefix = 'Inelastic Scattering - Elastic Channel'
         else:  # transfer
-            title_prefix = 'Transfer Reaction'
+            title_prefix = 'Transfer Reaction - Elastic Channel'
 
+        datasets_201 = self.energy_datasets
+
+        if not datasets_201:
+            self._show_no_data(ax, 'fort.201')
+            return
+
+        self._plot_dataset_on_axis(ax, datasets_201, f'{title_prefix} (fort.201)', 'Elastic')
+
+    def plot_angular_distribution_202(self, ax):
+        """Plot angular distribution from fort.202 (inelastic/transfer channel)"""
+        print(f"[PlotWidget] plot_angular_distribution_202 called, calculation_type={self.calculation_type}", flush=True)
+
+        # Set title prefix based on calculation type
+        if self.calculation_type == "inelastic":
+            title_prefix = 'Inelastic Scattering - Inelastic Channel'
+        elif self.calculation_type == "transfer":
+            title_prefix = 'Transfer Reaction - Transfer Channel'
+        else:
+            title_prefix = 'Inelastic/Transfer Channel'
+
+        datasets_202 = self.energy_datasets_202
+
+        if not datasets_202:
+            self._show_no_data(ax, 'fort.202 (only available for inelastic/transfer)')
+            return
+
+        label_suffix = 'Inelastic' if self.calculation_type == 'inelastic' else 'Transfer'
+        self._plot_dataset_on_axis(ax, datasets_202, f'{title_prefix} (fort.202)', label_suffix)
+
+    def _plot_dataset_on_axis(self, ax, datasets, title, label_prefix):
+        """Helper function to plot datasets on a given axis"""
         if not datasets:
-            self._show_no_data(ax, source_file)
+            self._show_no_data(ax, 'No data')
             return
 
         # Color cycle for different energies
@@ -490,7 +520,6 @@ class PlotWidget(QWidget):
                     color = colors[i % len(colors)]
                     ax.plot(data[:, 0], data[:, 1], '-', linewidth=2, marker='o',
                            markersize=3, label=f'{energy:.2f} MeV', color=color)
-
             ax.legend(loc='best', fontsize=10)
         else:
             # Plot selected energy only
@@ -506,9 +535,22 @@ class PlotWidget(QWidget):
 
         ax.set_xlabel('Angle (degrees)', fontsize=12)
         ax.set_ylabel('dσ/dΩ (mb/sr)', fontsize=12)
-        ax.set_title(f'{title_prefix} - Angular Distribution (CM Frame)', fontsize=14, fontweight='bold')
+        ax.set_title(title, fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
-        ax.set_yscale('log')
+
+        # Only use log scale if data has positive values
+        try:
+            # Check if any plotted data has positive values
+            has_positive = False
+            for line in ax.get_lines():
+                ydata = line.get_ydata()
+                if len(ydata) > 0 and np.any(ydata > 0):
+                    has_positive = True
+                    break
+            if has_positive:
+                ax.set_yscale('log')
+        except Exception as e:
+            print(f"  Warning: Could not set log scale: {e}")
 
     def plot_energy_distribution(self, ax):
         """Plot integrated cross sections vs energy (from fort.39)"""

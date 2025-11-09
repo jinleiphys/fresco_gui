@@ -22,6 +22,7 @@ class SinglePotentialWidget(QWidget):
     def __init__(self, pot_number=1, parent=None):
         super().__init__(parent)
         self.pot_number = pot_number
+        self.kp_value = pot_number  # Default kp equals pot_number
         self.parameter_widgets = {}
         self.init_ui()
 
@@ -107,9 +108,8 @@ class SinglePotentialWidget(QWidget):
 
         pot_type = self.type_combo.currentData()
 
-        # Always add KP (partition number)
-        self.add_parameter_widget("kp", "Partition (kp):",
-                                   "Which partition this potential applies to", 1, 1, 20, 1)
+        # Note: kp is stored in self.kp_value, not as a parameter widget
+        # This is because kp is set during parsing and shouldn't be user-editable
 
         # Add SHAPE selector for type > 0
         if pot_type > 0:
@@ -189,17 +189,17 @@ class SinglePotentialWidget(QWidget):
         self.add_parameter_widget("v", "V (MeV):",
                                    "Real potential depth", 50.0, -500.0, 500.0, 1.0)
         self.add_parameter_widget("vr0", "r0:",
-                                   "Real radius (fm)", 1.2, 0.1, 5.0, 0.01)
+                                   "Real radius (fm)", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("va", "a (fm):",
-                                   "Real diffuseness", 0.65, 0.1, 2.0, 0.01)
+                                   "Real diffuseness", 0.65, 0.0, 2.0, 0.01)
 
         # Imaginary part
         self.add_parameter_widget("w", "W (MeV):",
                                    "Imaginary depth", 10.0, -500.0, 500.0, 1.0)
         self.add_parameter_widget("wr0", "r0W:",
-                                   "Imaginary radius (fm)", 1.2, 0.1, 5.0, 0.01)
+                                   "Imaginary radius (fm)", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("wa", "aW (fm):",
-                                   "Imaginary diffuseness", 0.65, 0.1, 2.0, 0.01)
+                                   "Imaginary diffuseness", 0.65, 0.0, 2.0, 0.01)
 
     def add_surface_params(self):
         """Add TYPE=2 (Surface) parameters"""
@@ -207,35 +207,35 @@ class SinglePotentialWidget(QWidget):
         self.add_parameter_widget("v", "Volume depth V (MeV):",
                                    "Volume part of potential", 50.0, -500.0, 500.0, 1.0)
         self.add_parameter_widget("vr0", "Volume radius r₀ (fm):",
-                                   "Radius for volume part", 1.2, 0.1, 5.0, 0.01)
+                                   "Radius for volume part", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("va", "Volume diffuseness a (fm):",
-                                   "Diffuseness for volume part", 0.65, 0.1, 2.0, 0.01)
+                                   "Diffuseness for volume part", 0.65, 0.0, 2.0, 0.01)
 
         # Surface derivative part
         self.add_parameter_widget("wd", "Surface depth WD (MeV):",
                                    "Depth of surface imaginary potential", 10.0, -500.0, 500.0, 1.0)
         self.add_parameter_widget("wdr0", "Surface radius r₀D (fm):",
-                                   "Radius for surface imaginary", 1.2, 0.1, 5.0, 0.01)
+                                   "Radius for surface imaginary", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("awd", "Surface diffuseness aD (fm):",
-                                   "Diffuseness for surface imaginary", 0.65, 0.1, 2.0, 0.01)
+                                   "Diffuseness for surface imaginary", 0.65, 0.0, 2.0, 0.01)
 
     def add_spinorbit_params(self):
         """Add TYPE=3,4 (Spin-orbit) parameters"""
         self.add_parameter_widget("vso", "Spin-orbit V_SO (MeV):",
                                    "Spin-orbit strength (multiplied by ℏ²/(mπ²c²)=2.0)", 6.0, -100.0, 100.0, 0.1)
         self.add_parameter_widget("rso0", "SO radius r_SO (fm):",
-                                   "Radius parameter for spin-orbit", 1.2, 0.1, 5.0, 0.01)
+                                   "Radius parameter for spin-orbit", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("aso", "SO diffuseness a_SO (fm):",
-                                   "Diffuseness for spin-orbit", 0.65, 0.1, 2.0, 0.01)
+                                   "Diffuseness for spin-orbit", 0.65, 0.0, 2.0, 0.01)
 
     def add_deformation_params(self):
         """Add TYPE=8 (Deformation) parameters"""
         self.add_parameter_widget("beta", "Deformation β:",
                                    "Deformation parameter for collective model", 0.3, -2.0, 2.0, 0.01)
         self.add_parameter_widget("vr0", "Deformation radius r₀ (fm):",
-                                   "Radius for deformation potential", 1.2, 0.1, 5.0, 0.01)
+                                   "Radius for deformation potential", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("va", "Deformation diffuseness a (fm):",
-                                   "Diffuseness for deformation", 0.65, 0.1, 2.0, 0.01)
+                                   "Diffuseness for deformation", 0.65, 0.0, 2.0, 0.01)
 
     def get_pot_values(self):
         """
@@ -243,6 +243,9 @@ class SinglePotentialWidget(QWidget):
         Returns values in FRESCO format (ap/at/rc for TYPE=0, p1-p6 for others)
         """
         values = {}
+
+        # Add kp (potential set identifier)
+        values["kp"] = self.kp_value
 
         # Add type
         pot_type = self.type_combo.currentData()
@@ -320,6 +323,14 @@ class SinglePotentialWidget(QWidget):
             values: Dictionary with keys like 'type', 'kp', 'shape', 'p1', 'p2', etc.
         """
         print(f"    [SinglePotWidget #{self.pot_number}] Setting values: {values}")
+        print(f"      Initial kp_value (before set): {self.kp_value}")
+
+        # Set kp value
+        if 'kp' in values:
+            self.kp_value = values['kp']
+            print(f"      Set kp from values: kp = {self.kp_value}")
+        else:
+            print(f"      WARNING: 'kp' not in values! Keeping default kp_value={self.kp_value}")
 
         # Set potential type first (this determines which parameters are shown)
         if 'type' in values:
@@ -353,6 +364,14 @@ class SinglePotentialWidget(QWidget):
                 'p5': 'wr0',    # Imaginary radius r0W
                 'p6': 'wa',     # Imaginary diffuseness aW
             }
+            # Reset all type=1 parameters to 0 if not provided
+            for p_num in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']:
+                if p_num not in values:
+                    param_name = param_mapping.get(p_num)
+                    if param_name and param_name in self.parameter_widgets:
+                        widget = self.parameter_widgets[param_name]
+                        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                            widget.setValue(0)
         elif pot_type == 2:  # Surface
             param_mapping = {
                 'p1': 'v',      # Real depth V
@@ -362,6 +381,14 @@ class SinglePotentialWidget(QWidget):
                 'p5': 'wdr0',   # Surface imaginary radius r0D
                 'p6': 'awd',    # Surface imaginary diffuseness aD
             }
+            # Reset all type=2 parameters to 0 if not provided
+            for p_num in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']:
+                if p_num not in values:
+                    param_name = param_mapping.get(p_num)
+                    if param_name and param_name in self.parameter_widgets:
+                        widget = self.parameter_widgets[param_name]
+                        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                            widget.setValue(0)
         elif pot_type == 3:  # Spin-orbit
             param_mapping = {
                 'p1': 'vso',    # Real S.O. strength
@@ -371,6 +398,14 @@ class SinglePotentialWidget(QWidget):
                 'p5': 'wsor0',  # Imaginary S.O. radius
                 'p6': 'wsoa',   # Imaginary S.O. diffuseness
             }
+            # Reset all type=3 parameters to 0 if not provided
+            for p_num in ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']:
+                if p_num not in values:
+                    param_name = param_mapping.get(p_num)
+                    if param_name and param_name in self.parameter_widgets:
+                        widget = self.parameter_widgets[param_name]
+                        if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                            widget.setValue(0)
         elif pot_type == 11:  # Deformation (TYPE=11)
             param_mapping = {
                 'p2': 'vr0',    # Deformation radius parameter
@@ -532,7 +567,7 @@ class PotentialManagerWidget(QWidget):
         pot1.remove_requested.connect(self.remove_potential)
         # Set Coulomb parameters: ap=1.0, at=78.0, rc=1.2
         pot1.type_combo.setCurrentIndex(0)  # Coulomb
-        pot1.parameter_widgets['kp'].setValue(1)
+        pot1.kp_value = 1  # Set kp directly
         pot1.parameter_widgets['ap'].setValue(1.0)
         pot1.parameter_widgets['at'].setValue(78.0)
         pot1.parameter_widgets['rc'].setValue(1.2)
@@ -545,7 +580,7 @@ class PotentialManagerWidget(QWidget):
         pot2.remove_requested.connect(self.remove_potential)
         # Set Volume parameters: V=40.0, r0=1.2, a=0.65, W=10.0, r0W=1.2, aW=0.5
         pot2.type_combo.setCurrentIndex(1)  # Volume (index 1)
-        pot2.parameter_widgets['kp'].setValue(1)
+        pot2.kp_value = 1  # Set kp directly
         pot2.parameter_widgets['v'].setValue(40.0)
         pot2.parameter_widgets['vr0'].setValue(1.2)
         pot2.parameter_widgets['va'].setValue(0.65)
@@ -566,7 +601,13 @@ class PotentialManagerWidget(QWidget):
 
     def get_all_potentials(self):
         """Get all potential values as list of dictionaries"""
-        return [widget.get_pot_values() for widget in self.potential_widgets]
+        print(f"\n[PotentialManager] get_all_potentials called, {len(self.potential_widgets)} widgets")
+        result = []
+        for i, widget in enumerate(self.potential_widgets):
+            pot_values = widget.get_pot_values()
+            print(f"  Widget #{i+1}: kp={pot_values.get('kp')}, type={pot_values.get('type')}")
+            result.append(pot_values)
+        return result
 
     def generate_pot_namelists(self):
         """Generate all &POT namelist blocks as text"""
@@ -609,9 +650,13 @@ class PotentialManagerWidget(QWidget):
 
         # Create and populate new potential widgets
         for i, pot_params in enumerate(pot_list):
-            pot_widget = SinglePotentialWidget(i + 1)
+            # IMPORTANT: Don't use i+1 as default, that overwrites the parsed kp!
+            # Create widget without setting kp_value yet
+            pot_widget = SinglePotentialWidget(pot_number=i + 1)
             pot_widget.remove_requested.connect(self.remove_potential)
+            print(f"    [POT #{i+1}] Parsed params: kp={pot_params.get('kp', 'NOT FOUND')}, type={pot_params.get('type')}")
             pot_widget.set_pot_values(pot_params)
+            print(f"    [POT #{i+1}] After set_pot_values: kp_value={pot_widget.kp_value}")
 
             self.potential_widgets.append(pot_widget)
             self.potentials_layout.addWidget(pot_widget)
