@@ -187,7 +187,7 @@ class SinglePotentialWidget(QWidget):
         """Add TYPE=1 (Volume) parameters"""
         # Real part
         self.add_parameter_widget("v", "V (MeV):",
-                                   "Real potential depth", 50.0, -500.0, 500.0, 1.0)
+                                   "Real potential depth", 50.0, -500.0, 500.0, 0.1)
         self.add_parameter_widget("vr0", "r0:",
                                    "Real radius (fm)", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("va", "a (fm):",
@@ -195,7 +195,7 @@ class SinglePotentialWidget(QWidget):
 
         # Imaginary part
         self.add_parameter_widget("w", "W (MeV):",
-                                   "Imaginary depth", 10.0, -500.0, 500.0, 1.0)
+                                   "Imaginary depth", 10.0, -500.0, 500.0, 0.1)
         self.add_parameter_widget("wr0", "r0W:",
                                    "Imaginary radius (fm)", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("wa", "aW (fm):",
@@ -205,7 +205,7 @@ class SinglePotentialWidget(QWidget):
         """Add TYPE=2 (Surface) parameters"""
         # Real part (volume form)
         self.add_parameter_widget("v", "Volume depth V (MeV):",
-                                   "Volume part of potential", 50.0, -500.0, 500.0, 1.0)
+                                   "Volume part of potential", 50.0, -500.0, 500.0, 0.1)
         self.add_parameter_widget("vr0", "Volume radius r₀ (fm):",
                                    "Radius for volume part", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("va", "Volume diffuseness a (fm):",
@@ -213,7 +213,7 @@ class SinglePotentialWidget(QWidget):
 
         # Surface derivative part
         self.add_parameter_widget("wd", "Surface depth WD (MeV):",
-                                   "Depth of surface imaginary potential", 10.0, -500.0, 500.0, 1.0)
+                                   "Depth of surface imaginary potential", 10.0, -500.0, 500.0, 0.1)
         self.add_parameter_widget("wdr0", "Surface radius r₀D (fm):",
                                    "Radius for surface imaginary", 1.2, 0.0, 5.0, 0.01)
         self.add_parameter_widget("awd", "Surface diffuseness aD (fm):",

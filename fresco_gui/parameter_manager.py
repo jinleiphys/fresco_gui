@@ -585,6 +585,7 @@ def parse_coupling_namelists(input_text: str) -> list:
             'iato': int,
             'ip1': int,
             'ip2': int,
+            'ip3': int,
             'lambda': int,
             'jbeta': float,
         }
@@ -603,7 +604,64 @@ def parse_coupling_namelists(input_text: str) -> list:
         if coupling_params:
             coupling_list.append(coupling_params)
 
+    # Parse CFP namelists and attach to the last coupling (for transfer reactions)
+    cfp_list = parse_cfp_namelists(input_text)
+    if cfp_list and coupling_list:
+        # Attach CFP list to the last coupling (typically the transfer coupling)
+        coupling_list[-1]['cfp_list'] = cfp_list
+
     return coupling_list
+
+
+def parse_cfp_namelists(input_text: str) -> list:
+    """
+    Parse all &CFP namelists from FRESCO input file
+
+    Args:
+        input_text: Content of FRESCO input file
+
+    Returns:
+        List of dictionaries, each containing CFP parameters
+    """
+    import re
+
+    cfp_list = []
+
+    # Find all &CFP namelists
+    pattern = r'&CFP\s+(.*?)\s*/'
+    matches = re.findall(pattern, input_text, re.DOTALL | re.IGNORECASE)
+
+    for match in matches:
+        # Skip empty CFP namelists (terminating &CFP /)
+        if not match.strip():
+            continue
+
+        cfp_params = {}
+
+        # Parse all CFP parameters
+        params_to_extract = {
+            'in': int,
+            'ib': int,
+            'ia': int,
+            'kn': int,
+            'a': float,
+        }
+
+        for param_name, param_type in params_to_extract.items():
+            param_pattern = rf'{param_name}\s*=\s*([^\s,]+)'
+            param_match = re.search(param_pattern, match, re.IGNORECASE)
+
+            if param_match:
+                try:
+                    value_str = param_match.group(1).strip()
+                    cfp_params[param_name] = param_type(value_str)
+                except (ValueError, AttributeError):
+                    pass
+
+        if cfp_params:
+            cfp_list.append(cfp_params)
+
+    return cfp_list
 
 
 def detect_calculation_type(input_text: str) -> str:

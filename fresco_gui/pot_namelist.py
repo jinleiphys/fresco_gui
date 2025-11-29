@@ -149,7 +149,7 @@ class PotNamelist:
         params["p1"] = PotParameter(
             "p1", "Real depth V (p1)",
             "Depth of real potential (MeV). Negative for attractive potential.",
-            default=50.0, step=1.0, minimum=-500.0, maximum=500.0, category="volume"
+            default=50.0, step=0.1, minimum=-500.0, maximum=500.0, category="volume"
         )
 
         params["p2"] = PotParameter(
@@ -169,7 +169,7 @@ class PotNamelist:
         params["p4"] = PotParameter(
             "p4", "Imaginary depth W (p4)",
             "Depth of imaginary potential (MeV). Negative for absorption.",
-            default=0.0, step=1.0, minimum=-500.0, maximum=500.0, category="volume"
+            default=0.0, step=0.1, minimum=-500.0, maximum=500.0, category="volume"
         )
 
         params["p5"] = PotParameter(
@@ -197,7 +197,7 @@ class PotNamelist:
         params["v"] = PotParameter(
             "v", "Real depth V (MeV)",
             "Equivalent to p1: depth of real potential (MeV)",
-            default=50.0, step=1.0, minimum=-500.0, maximum=500.0, category="volume"
+            default=50.0, step=0.1, minimum=-500.0, maximum=500.0, category="volume"
         )
 
         params["vr0"] = PotParameter(
@@ -215,7 +215,7 @@ class PotNamelist:
         params["w"] = PotParameter(
             "w", "Imaginary depth W (MeV)",
             "Equivalent to p4: depth of imaginary potential (MeV)",
-            default=0.0, step=1.0, minimum=-500.0, maximum=500.0, category="volume"
+            default=0.0, step=0.1, minimum=-500.0, maximum=500.0, category="volume"
         )
 
         params["wr0"] = PotParameter(
@@ -234,7 +234,7 @@ class PotNamelist:
         params["wd"] = PotParameter(
             "wd", "Surface imaginary depth W_D",
             "Depth of surface imaginary (derivative) potential (MeV)",
-            default=0.0, step=1.0, minimum=-500.0, maximum=500.0, category="surface"
+            default=0.0, step=0.1, minimum=-500.0, maximum=500.0, category="surface"
         )
 
         params["wdr0"] = PotParameter(
