@@ -1,5 +1,5 @@
 """
-Input panel with text editor and form-based input for FRESCO input files
+Input panel with text editor and wizard-based input for FRESCO input files
 """
 
 from PySide6.QtWidgets import (
@@ -8,11 +8,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, QTimer
 
-from form_input_panel import FormInputPanel
+from wizard_controller import WizardController
 
 
 class InputPanel(QWidget):
-    """Panel containing input file editor with tabs for text and form input"""
+    """Panel containing input file editor with tabs for text and wizard input"""
 
     def __init__(self):
         super().__init__()
@@ -27,7 +27,7 @@ class InputPanel(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        """Initialize the UI with tabs for text editor and form builder"""
+        """Initialize the UI with tabs for text editor and wizard"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -72,19 +72,19 @@ class InputPanel(QWidget):
         text_layout.addWidget(self.text_edit)
 
         # Footer with hints for text editor
-        footer = QLabel("💡 Tip: Edit FRESCO input directly here, or click 'Show Example' to load p+Ni78 example. Auto-save enabled (2s after edit).")
+        footer = QLabel("Tip: Edit FRESCO input directly here, or click 'Show Example' to load p+Ni78 example. Auto-save enabled (2s after edit).")
         footer.setObjectName("footerHint")
         footer.setWordWrap(True)
         text_layout.addWidget(footer)
 
-        # Tab 2: Form Builder (new graphical interface)
-        self.form_panel = FormInputPanel()
-        # Connect form generation signal to update text editor
-        self.form_panel.input_generated.connect(self.set_input_text)
+        # Tab 2: Wizard (interactive step-by-step interface)
+        self.wizard = WizardController()
+        # Connect wizard generation signal to update text editor
+        self.wizard.input_generated.connect(self.set_input_text)
 
         # Add tabs
         self.tabs.addTab(text_editor_widget, "Text Editor")
-        self.tabs.addTab(self.form_panel, "Form Builder")
+        self.tabs.addTab(self.wizard, "Input Wizard")
 
         layout.addWidget(self.tabs)
 
@@ -102,7 +102,7 @@ class InputPanel(QWidget):
         self.tabs.setCurrentIndex(0)  # 0 = Text Editor tab
 
     def load_from_file(self, file_path):
-        """Load input from file and switch to Form Builder"""
+        """Load input from file"""
         from PySide6.QtWidgets import QMessageBox
         import re
 
@@ -133,11 +133,8 @@ class InputPanel(QWidget):
         # Load content into text editor
         self.set_input_text(content)
 
-        # Notify form builder to update parameter categorization
-        self.form_panel.update_from_loaded_file(content)
-
-        # Automatically switch to Form Builder tab
-        self.tabs.setCurrentIndex(1)  # Index 1 is Form Builder tab
+        # Stay on text editor tab for loaded files
+        self.tabs.setCurrentIndex(0)  # Index 0 is Text Editor tab
 
     def save_to_file(self, file_path):
         """Save input to file"""

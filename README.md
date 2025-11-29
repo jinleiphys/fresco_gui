@@ -4,17 +4,37 @@ Modern graphical user interface for FRESCO coupled channels calculations.
 
 ## Features
 
-- **Input Editor**: Full-featured text editor for FRESCO input files with syntax support
-- **Plotting Area**: Real-time visualization of calculation results with multiple plot types
-- **Output Log**: Color-coded log display with real-time monitoring of FRESCO output
-- **Modern Design**: Beautiful, responsive interface with light and dark theme support
-- **File Operations**: Load/save input files, export results
-- **Integrated Execution**: Run FRESCO directly from the GUI with real-time feedback
+### Dual Input Modes
+- **Interactive Wizard**: Step-by-step guided input for all reaction types
+  - Elastic scattering
+  - Inelastic scattering
+  - Transfer reactions (with automatic quantum number setup)
+- **Text Editor**: Full-featured editor for direct FRESCO input file editing
+
+### Reaction Support
+- **Elastic Scattering**: Simple projectile-target reactions with optical potentials
+- **Inelastic Scattering**: Excited states with coupling definitions
+- **Transfer Reactions**: Complete support including:
+  - Automatic binding energy lookup (deuteron, triton, 3He, alpha)
+  - Shell-model quantum numbers (p-shell, sd-shell)
+  - Proper parity assignments from nuclear database
+  - 5 potential sets (entrance, exit, projectile binding, residual binding, remnant)
+  - Overlap functions and coupling configurations
+
+### Visualization & Output
+- **Real-time Plotting**: Visualization of cross sections and angular distributions
+- **Output Log**: Color-coded log with real-time FRESCO output monitoring
+- **Modern Design**: Clean interface with light and dark theme support
+
+### Nuclear Database
+- Automatic mass lookup from AME2020 atomic mass evaluation
+- Ground state spins and parities for common nuclei
+- Separation energies for transfer reaction binding
 
 ## Screenshots
 
 The GUI features a split-panel layout:
-- Left panel: Input file editor
+- Left panel: Wizard interface or text editor
 - Right panel: Results plotting and output logs
 
 ## Installation
@@ -60,44 +80,56 @@ make
 ### Running the GUI
 
 ```bash
-# Activate the environment
+# Using the launcher script (recommended)
+./run_fresco_gui.sh
+
+# Or manually
 conda activate fresco_gui
-
-# Navigate to GUI directory
 cd fresco_gui
-
-# Launch the application
 python main.py
 ```
 
-### Or use the launcher script
+### Using the Wizard
 
-```bash
-./run_fresco_gui.sh
-```
+1. **Reaction Setup**:
+   - Enter reaction equation (e.g., `c12(d,p)c13` for transfer, `p+ni58` for elastic)
+   - Set beam energy
+   - The wizard automatically detects reaction type
 
-### Using the Application
+2. **Particle Configuration**:
+   - Review/modify particle properties (masses, spins, parities)
+   - Values are pre-filled from the nuclear database
+
+3. **Potentials** (for elastic/inelastic):
+   - Configure optical potentials
+   - Add multiple potential components (Coulomb, volume, surface, spin-orbit)
+
+4. **Transfer-specific Steps**:
+   - **Exit Channel**: Configure ejectile and residual nucleus
+   - **Overlap Functions**: Set binding energies and spectroscopic factors
+   - Quantum numbers are auto-calculated from shell model
+
+5. **Generate & Run**:
+   - Review generated input
+   - Run FRESCO calculation
+   - View results in plot panel
+
+### Using the Text Editor
 
 1. **Input Parameters**:
    - Create a new input file or load an existing one (File → Open)
-   - Edit the FRESCO input in the text editor
-   - Use "Show Example" button to see a sample input file
+   - Edit the FRESCO input directly
+   - Use "Show Example" button to see sample inputs
 
 2. **Run Calculation**:
    - Save your input file (File → Save)
-   - Click the "Run" button in the toolbar or press Ctrl+R
+   - Click "Run" or press Ctrl+R
    - Monitor progress in the Output Log tab
-   - Results will automatically appear in the Plot tab when complete
 
 3. **View Results**:
-   - Switch to the Plot tab to visualize results
-   - Choose different plot types from the dropdown menu
-   - Use the matplotlib toolbar to zoom, pan, and save plots
-
-4. **Save/Load**:
-   - Save current inputs: File → Save (Ctrl+S)
-   - Load previous inputs: File → Open (Ctrl+O)
-   - Export plots using the matplotlib toolbar
+   - Switch to the Plot tab
+   - Choose plot types from dropdown
+   - Use matplotlib toolbar for zoom/pan/save
 
 ### Keyboard Shortcuts
 
@@ -123,6 +155,35 @@ The GUI supports both light and dark themes:
 - numpy
 - scipy (optional)
 - FRESCO compiled executable
+
+## Project Structure
+
+```
+fresco_gui/
+├── main.py                    # Application entry point
+├── main_window.py             # Main window and menu/toolbar
+├── input_panel.py             # Input panel with wizard/editor tabs
+├── wizard_controller.py       # Wizard flow controller
+├── wizard_navigator.py        # Step navigation and progress
+├── wizard_step_widget.py      # Base wizard step widget
+├── wizard_steps/              # Individual wizard steps
+│   ├── reaction_input_step.py
+│   ├── particle_config_step.py
+│   ├── potential_setup_step.py
+│   ├── exit_channel_step.py
+│   ├── overlap_step.py
+│   └── review_step.py
+├── reaction_parser.py         # Reaction equation parser
+├── mass_database.py           # Nuclear mass/spin/parity database
+├── plot_widget.py             # Matplotlib plotting widget
+├── log_widget.py              # Output log display
+├── runner.py                  # FRESCO execution handler
+├── fresco_namelist.py         # FRESCO parameter definitions
+├── pot_namelist.py            # Potential parameter definitions
+├── styles.py                  # Theme definitions
+├── path_utils.py              # Path detection utilities
+└── requirements.txt           # Python dependencies
+```
 
 ## Troubleshooting
 
@@ -150,22 +211,6 @@ brew install qt6
 
 ## Development
 
-### Project Structure
-
-```
-fresco_gui/
-├── main.py              # Application entry point
-├── main_window.py       # Main window and menu/toolbar
-├── input_panel.py       # Input file editor
-├── plot_widget.py       # Matplotlib plotting widget
-├── log_widget.py        # Output log display
-├── runner.py            # FRESCO execution handler
-├── styles.py            # Theme definitions
-├── path_utils.py        # Path detection utilities
-├── requirements.txt     # Python dependencies
-└── README.md           # This file
-```
-
 ### Contributing
 
 To contribute to the GUI:
@@ -173,6 +218,19 @@ To contribute to the GUI:
 2. Use Qt's signal/slot mechanism for inter-widget communication
 3. Maintain compatibility with both light and dark themes
 4. Test on multiple platforms when possible
+
+### Adding New Reaction Types
+
+1. Add step classes in `wizard_steps/`
+2. Register steps in `wizard_controller.py`
+3. Implement input generation in `_generate_*_input()` methods
+
+### Extending the Nuclear Database
+
+Add entries to `mass_database.py`:
+- `DEFAULT_SPINS` for ground state spins
+- `DEFAULT_PARITIES` for ground state parities
+- Mass data is loaded from AME2020
 
 ## License
 
@@ -189,6 +247,7 @@ For issues or questions:
 Built with:
 - PySide6 (Qt for Python)
 - matplotlib for scientific plotting
+- AME2020 atomic mass evaluation data
 - Modern design inspired by macOS and web interfaces
 
 **FRESCO Studio** - A modern interface for quantum coupled channels calculations
