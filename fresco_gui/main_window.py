@@ -400,7 +400,6 @@ for coupled reaction channels</p>
 <p><b>Contact:</b> jinlei@fewbody.com</p>
 <br>
 <p>Built with PySide6 and matplotlib</p>
-<p>© 2024 FRESCO Team</p>
 """
         QMessageBox.about(self, "About FRESCO Studio", about_text)
 

@@ -250,6 +250,4 @@ Built with:
 - AME2020 atomic mass evaluation data
 - Modern design inspired by macOS and web interfaces
 
-**FRESCO Studio** - A modern interface for quantum coupled channels calculations
-
-© 2024 FRESCO Team
+**FRESCO Studio** - Coupled Channels Calculations for Direct Nuclear Reactions
