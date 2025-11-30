@@ -319,6 +319,21 @@ print_info "Using gfortran: $GFORTRAN_PATH"
 # Add gfortran directory to PATH for make
 export PATH="$(dirname "$GFORTRAN_PATH"):$PATH"
 
+# On macOS with conda gfortran, we need to set the SDK path for the linker
+# to find system libraries like libm
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # Find the macOS SDK path
+    SDK_PATH=$(xcrun --show-sdk-path 2>/dev/null)
+    if [ -n "$SDK_PATH" ]; then
+        print_info "Using macOS SDK: $SDK_PATH"
+        export LIBRARY_PATH="$SDK_PATH/usr/lib:${LIBRARY_PATH:-}"
+        export LDFLAGS="-L$SDK_PATH/usr/lib ${LDFLAGS:-}"
+    else
+        print_warning "Could not find macOS SDK path. If linking fails, install Xcode Command Line Tools:"
+        print_warning "  xcode-select --install"
+    fi
+fi
+
 make clean 2>/dev/null || true
 make
 
