@@ -2,6 +2,12 @@
 
 Modern graphical user interface for FRESCO coupled channels calculations.
 
+**Coupled Channels Calculations for Direct Nuclear Reactions**
+
+[中文说明](README_CN.md)
+
+---
+
 ## Features
 
 ### Dual Input Modes
@@ -39,41 +45,150 @@ The GUI features a split-panel layout:
 
 ## Installation
 
-### Quick Setup (Recommended)
+### Step 0: Prerequisites
 
-Run the automated setup script:
+Before installing FRESCO Studio, you need:
+
+1. **A computer running macOS or Linux** (Windows users can use WSL)
+2. **Anaconda or Miniconda** - for Python environment management
+3. **A Fortran compiler** - for building FRESCO
+
+#### Installing Anaconda/Miniconda (if you don't have it)
+
+**macOS:**
+```bash
+# Download and install Miniconda (lightweight version)
+curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh
+bash Miniconda3-latest-MacOSX-arm64.sh
+# Follow the prompts, say "yes" to initialize conda
+# Then restart your terminal
+```
+
+**Linux:**
+```bash
+curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+# Follow the prompts, say "yes" to initialize conda
+# Then restart your terminal
+```
+
+#### Installing a Fortran Compiler
+
+**macOS:**
+```bash
+# Install Homebrew first if you don't have it
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install gfortran
+brew install gcc
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update
+sudo apt-get install gfortran
+```
+
+---
+
+### Step 1: Download the Code
+
+#### Option A: Download ZIP (Easiest - No Git Required)
+
+1. Go to: https://github.com/jinleiphys/fresco_gui
+2. Click the green **"Code"** button
+3. Click **"Download ZIP"**
+4. Extract the ZIP file to a folder (e.g., your Desktop or Documents)
+5. Open Terminal and navigate to the folder:
+   ```bash
+   cd ~/Desktop/fresco_gui-main
+   # or wherever you extracted it
+   ```
+
+#### Option B: Using Git (Recommended)
+
+If you have Git installed:
+```bash
+cd ~  # Go to your home directory
+git clone https://github.com/jinleiphys/fresco_gui.git
+cd fresco_gui
+```
+
+---
+
+### Step 2: Run the Setup Script (Recommended)
+
+Once you're in the fresco_gui folder, run:
 
 ```bash
-cd /path/to/fresco_gui
 chmod +x setup_gui.sh
 ./setup_gui.sh
 ```
 
-This script will:
+This script will automatically:
 1. Create a conda environment named `fresco_gui`
 2. Install all Python dependencies
 3. Build the FRESCO Fortran code
-4. Set up the environment for immediate use
+4. Set up everything for immediate use
 
-### Manual Setup
+**Wait for the script to complete** (it may take a few minutes).
 
-1. **Create conda environment**:
+---
+
+### Step 3: Run FRESCO Studio
+
+After setup is complete:
+
+```bash
+./run_fresco_gui.sh
+```
+
+The GUI should now open!
+
+---
+
+### Manual Setup (Alternative)
+
+If the automatic setup doesn't work, you can set up manually:
+
+**1. Create and activate conda environment:**
 ```bash
 conda create -n fresco_gui python=3.10
 conda activate fresco_gui
 ```
 
-2. **Install Python dependencies**:
+**2. Install Python dependencies:**
 ```bash
 cd fresco_gui
 pip install -r requirements.txt
 ```
 
-3. **Build FRESCO**:
+**3. Build FRESCO:**
 ```bash
 cd ../fresco_code/source
 make
 ```
+
+**4. Run the GUI:**
+```bash
+cd ../../fresco_gui
+python main.py
+```
+
+---
+
+### Updating FRESCO Studio
+
+To get the latest version:
+
+**If you used Git:**
+```bash
+cd fresco_gui
+git pull
+```
+
+**If you downloaded ZIP:**
+Download the new ZIP and replace the old folder.
 
 ## Usage
 
@@ -248,6 +363,3 @@ Built with:
 - PySide6 (Qt for Python)
 - matplotlib for scientific plotting
 - AME2020 atomic mass evaluation data
-- Modern design inspired by macOS and web interfaces
-
-**FRESCO Studio** - Coupled Channels Calculations for Direct Nuclear Reactions
