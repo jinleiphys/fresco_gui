@@ -242,91 +242,96 @@ class PlotWidget(QWidget):
 
     def read_fort7_smatrix(self, filename):
         """
-        Read fort.7 S-matrix file - returns data grouped by unique L values
+        Read fort.7 S-matrix file with multiple energy datasets
 
-        The fort.7 file contains S-matrix elements for different (L, J) combinations.
-        For plotting, we group by L to show |S| vs J for each partial wave.
+        The file contains S-matrix elements for different (L, J) combinations.
+        For multi-energy calculations, datasets are separated by blank lines or
+        when J resets to a small value AND L also resets to 0.
 
         Returns:
             List of dicts, each containing:
-                - 'L': int (orbital angular momentum for this partial wave)
+                - 'energy_index': int (energy dataset index, 0-based)
                 - 'J': numpy array (total angular momentum values)
                 - 'S_magnitude': numpy array (|S| = sqrt(Re^2 + Im^2))
                 - 'Re': numpy array (real part)
                 - 'Im': numpy array (imaginary part)
+                - 'L': numpy array (orbital angular momentum)
         """
-        # First, read all data points
-        all_data = []
+        datasets = []
 
         with open(filename, 'r') as f:
-            lines = f.readlines()
+            content = f.read()
 
-        for line in lines:
-            line_stripped = line.strip()
-            if not line_stripped or line_stripped.startswith('#'):
-                continue
+        # Split by blank lines to separate energy datasets
+        # A blank line (or multiple blank lines) indicates a new energy
+        blocks = re.split(r'\n\s*\n', content.strip())
 
-            # Parse data: Re(S) Im(S) L J JT : S(L,J,JT)
-            parts = line_stripped.split(':')[0].strip().split()
-            if len(parts) >= 4:
-                try:
-                    re_s = float(parts[0])
-                    im_s = float(parts[1])
-                    L = int(float(parts[2]))
-                    J = float(parts[3])
-                    s_mag = np.sqrt(re_s**2 + im_s**2)
+        for block_idx, block in enumerate(blocks):
+            current_dataset = {
+                'J': [],
+                'S_magnitude': [],
+                'Re': [],
+                'Im': [],
+                'L': []
+            }
 
-                    all_data.append({
-                        'L': L,
-                        'J': J,
-                        'S_magnitude': s_mag,
-                        'Re': re_s,
-                        'Im': im_s
-                    })
-                except (ValueError, IndexError):
+            for line in block.strip().split('\n'):
+                line_stripped = line.strip()
+                if not line_stripped or line_stripped.startswith('#'):
                     continue
 
-        # Group by L value
-        from collections import defaultdict
-        grouped = defaultdict(list)
-        for d in all_data:
-            grouped[d['L']].append(d)
+                # Parse data: Re(S) Im(S) L J JT : S(L,J,JT)
+                parts = line_stripped.split(':')[0].strip().split()
+                if len(parts) >= 4:
+                    try:
+                        re_s = float(parts[0])
+                        im_s = float(parts[1])
+                        L = float(parts[2])
+                        J = float(parts[3])
 
-        # Create datasets sorted by L
-        datasets = []
-        for L in sorted(grouped.keys()):
-            data_list = grouped[L]
-            # Sort by J within each L
-            data_list.sort(key=lambda x: x['J'])
+                        # Calculate |S|
+                        s_mag = np.sqrt(re_s**2 + im_s**2)
 
-            datasets.append({
-                'L': L,
-                'J': np.array([d['J'] for d in data_list]),
-                'S_magnitude': np.array([d['S_magnitude'] for d in data_list]),
-                'Re': np.array([d['Re'] for d in data_list]),
-                'Im': np.array([d['Im'] for d in data_list])
-            })
+                        # Append to current dataset
+                        current_dataset['J'].append(J)
+                        current_dataset['S_magnitude'].append(s_mag)
+                        current_dataset['Re'].append(re_s)
+                        current_dataset['Im'].append(im_s)
+                        current_dataset['L'].append(L)
+
+                    except ValueError:
+                        continue
+
+            # Save dataset if it has data
+            if current_dataset['J']:
+                datasets.append({
+                    'energy_index': block_idx,
+                    'J': np.array(current_dataset['J']),
+                    'S_magnitude': np.array(current_dataset['S_magnitude']),
+                    'Re': np.array(current_dataset['Re']),
+                    'Im': np.array(current_dataset['Im']),
+                    'L': np.array(current_dataset['L'])
+                })
 
         return datasets
 
     def read_fort45_phaseshift(self, filename):
         """
-        Read fort.45 phase shift file - returns data grouped by unique L values
+        Read fort.45 phase shift file with multiple energy datasets
 
-        The fort.45 file contains phase shifts for different (L, J) combinations.
-        For plotting, we group by L to show phase shift vs J for each partial wave.
+        The file contains phase shifts for different (L, J) combinations.
+        For multi-energy calculations, datasets are separated by different energy values.
 
         Returns:
             List of dicts, each containing:
-                - 'L': int (orbital angular momentum for this partial wave)
-                - 'energy': float (CM energy in MeV, same for all in single-energy calc)
+                - 'energy': float (CM energy in MeV)
                 - 'J': numpy array (total angular momentum values)
-                - 'phase1': numpy array (Coulomb phase shift in degrees)
-                - 'phase2': numpy array (nuclear phase shift in degrees)
+                - 'L': numpy array (orbital angular momentum)
+                - 'phase1': numpy array (phase shift 1, Coulomb)
+                - 'phase2': numpy array (phase shift 2, nuclear)
         """
-        # First, read all data points
+        # First pass: collect all data points with their energies
         all_data = []
-        common_energy = None
 
         with open(filename, 'r') as f:
             lines = f.readlines()
@@ -343,41 +348,48 @@ class PlotWidget(QWidget):
                     energy = float(parts[0])
                     phase1 = float(parts[1])
                     phase2 = float(parts[2])
-                    L = int(float(parts[6]))  # parts: [energy, p1, p2, 'for', 'LJin', '=', L, J]
+                    L = float(parts[6])  # parts: [energy, p1, p2, 'for', 'LJin', '=', L, J]
                     J = float(parts[7])
 
-                    if common_energy is None:
-                        common_energy = energy
-
                     all_data.append({
+                        'energy': energy,
                         'L': L,
                         'J': J,
-                        'energy': energy,
                         'phase1': phase1,
                         'phase2': phase2
                     })
                 except (ValueError, IndexError):
                     continue
 
-        # Group by L value
-        from collections import defaultdict
-        grouped = defaultdict(list)
+        # Group by unique energy values
+        from collections import OrderedDict
+        energy_groups = OrderedDict()
         for d in all_data:
-            grouped[d['L']].append(d)
+            e = d['energy']
+            # Use rounded energy as key to handle floating point comparison
+            e_key = round(e, 4)
+            if e_key not in energy_groups:
+                energy_groups[e_key] = {
+                    'energy': e,
+                    'J': [],
+                    'L': [],
+                    'phase1': [],
+                    'phase2': []
+                }
+            energy_groups[e_key]['J'].append(d['J'])
+            energy_groups[e_key]['L'].append(d['L'])
+            energy_groups[e_key]['phase1'].append(d['phase1'])
+            energy_groups[e_key]['phase2'].append(d['phase2'])
 
-        # Create datasets sorted by L
+        # Convert to list of datasets
         datasets = []
-        for L in sorted(grouped.keys()):
-            data_list = grouped[L]
-            # Sort by J within each L
-            data_list.sort(key=lambda x: x['J'])
-
+        for e_key, group in energy_groups.items():
             datasets.append({
-                'L': L,
-                'energy': common_energy,
-                'J': np.array([d['J'] for d in data_list]),
-                'phase1': np.array([d['phase1'] for d in data_list]),
-                'phase2': np.array([d['phase2'] for d in data_list])
+                'energy': group['energy'],
+                'J': np.array(group['J']),
+                'L': np.array(group['L']),
+                'phase1': np.array(group['phase1']),
+                'phase2': np.array(group['phase2'])
             })
 
         return datasets
@@ -549,81 +561,96 @@ class PlotWidget(QWidget):
             self._show_no_data(ax, 'fort.39')
 
     def plot_phaseshift(self, ax):
-        """Plot phase shifts (Nuclear phase shift vs J) grouped by L"""
+        """Plot phase shifts (Nuclear phase shift vs J)"""
         if not self.phaseshift_datasets:
             self._show_no_data(ax, 'fort.45 (phase shifts)')
             return
 
-        # Color cycle for different L values
+        # Color cycle for different energies
         colors = plt.cm.tab10(np.linspace(0, 1, 10))
 
-        # Plot each partial wave (grouped by L)
-        for i, dataset in enumerate(self.phaseshift_datasets):
-            L = dataset['L']
-            J = dataset['J']
-            phase2 = dataset['phase2']  # Nuclear phase shift
-            color = colors[i % len(colors)]
+        if self.show_all_energies.isChecked():
+            # Plot all energies
+            for i, dataset in enumerate(self.phaseshift_datasets):
+                J = dataset['J']
+                phase2 = dataset['phase2']  # Nuclear phase shift
+                color = colors[i % len(colors)]
 
-            # Label by L value
-            label = f'L = {L}'
+                # Get energy label (use CM energy from fort.45)
+                energy = dataset['energy']
+                label = f'{energy:.2f} MeV (CM)'
 
-            ax.plot(J, phase2, '-o', linewidth=2, markersize=4,
-                   label=label, color=color)
+                ax.plot(J, phase2, '-o', linewidth=2, markersize=4,
+                       label=label, color=color)
 
-        ax.legend(loc='best', fontsize=10)
-
-        # Add energy info to title if available
-        if self.phaseshift_datasets and self.phaseshift_datasets[0]['energy'] is not None:
-            energy = self.phaseshift_datasets[0]['energy']
-            title = f'Nuclear Phase Shifts (E$_{{cm}}$ = {energy:.2f} MeV)'
+            ax.legend(loc='best', fontsize=10)
         else:
-            title = 'Nuclear Phase Shifts'
+            # Plot selected energy only
+            idx = self.energy_selector.currentIndex()
+            if 0 <= idx < len(self.phaseshift_datasets):
+                dataset = self.phaseshift_datasets[idx]
+                J = dataset['J']
+                phase2 = dataset['phase2']  # Nuclear phase shift
+                energy = dataset['energy']
+                label = f'{energy:.4f} MeV (CM)'
+
+                ax.plot(J, phase2, 'b-o', linewidth=2, markersize=4, label=label)
+                ax.legend(loc='best', fontsize=10)
 
         ax.set_xlabel('Total Angular Momentum J', fontsize=12)
         ax.set_ylabel('Nuclear Phase Shift (degrees)', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title('Nuclear Phase Shifts', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
         ax.axhline(y=0, color='k', linestyle='--', alpha=0.3, linewidth=1)
 
     def plot_smatrix(self, ax):
-        """Plot S-matrix elements (|S| vs J) grouped by L"""
+        """Plot S-matrix elements (|S| vs J)"""
         if not self.smatrix_datasets:
             self._show_no_data(ax, 'fort.7 (S-matrix)')
             return
 
-        # Color cycle for different L values
+        # Color cycle for different energies
         colors = plt.cm.tab10(np.linspace(0, 1, 10))
 
-        # Plot each partial wave (grouped by L)
-        for i, dataset in enumerate(self.smatrix_datasets):
-            L = dataset['L']
-            J = dataset['J']
-            S_mag = dataset['S_magnitude']
-            color = colors[i % len(colors)]
+        if self.show_all_energies.isChecked():
+            # Plot all energies
+            for i, dataset in enumerate(self.smatrix_datasets):
+                J = dataset['J']
+                S_mag = dataset['S_magnitude']
+                color = colors[i % len(colors)]
 
-            # Label by L value
-            label = f'L = {L}'
+                # Get corresponding energy from fort.201 if available
+                if i < len(self.energy_datasets):
+                    energy = self.energy_datasets[i]['energy']
+                    label = f'{energy:.2f} MeV'
+                else:
+                    label = f'Energy {i+1}'
 
-            ax.plot(J, S_mag, '-o', linewidth=2, markersize=4,
-                   label=label, color=color)
+                ax.plot(J, S_mag, '-o', linewidth=2, markersize=4,
+                       label=label, color=color)
 
-        ax.legend(loc='best', fontsize=10)
-
-        # Add energy info to title if available from fort.201
-        if self.energy_datasets:
-            # Use the selected energy or first energy
-            idx = self.energy_selector.currentIndex()
-            if 0 <= idx < len(self.energy_datasets):
-                energy = self.energy_datasets[idx]['energy']
-                title = f'S-Matrix Elements (E$_{{lab}}$ = {energy:.2f} MeV)'
-            else:
-                title = 'S-Matrix Elements'
+            ax.legend(loc='best', fontsize=10)
         else:
-            title = 'S-Matrix Elements'
+            # Plot selected energy only
+            idx = self.energy_selector.currentIndex()
+            if 0 <= idx < len(self.smatrix_datasets):
+                dataset = self.smatrix_datasets[idx]
+                J = dataset['J']
+                S_mag = dataset['S_magnitude']
+
+                # Get corresponding energy label
+                if idx < len(self.energy_datasets):
+                    energy = self.energy_datasets[idx]['energy']
+                    label = f'{energy:.4f} MeV'
+                else:
+                    label = f'Energy {idx+1}'
+
+                ax.plot(J, S_mag, 'b-o', linewidth=2, markersize=4, label=label)
+                ax.legend(loc='best', fontsize=10)
 
         ax.set_xlabel('Total Angular Momentum J', fontsize=12)
         ax.set_ylabel('|S|', fontsize=12)
-        ax.set_title(title, fontsize=14, fontweight='bold')
+        ax.set_title('S-Matrix Elements', fontsize=14, fontweight='bold')
         ax.grid(True, alpha=0.3)
         ax.set_ylim(0, 1.1)  # |S| ranges from 0 to ~1
 
