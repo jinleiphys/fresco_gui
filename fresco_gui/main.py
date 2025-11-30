@@ -4,9 +4,10 @@ FRESCO Studio - Modern interface for FRESCO quantum scattering calculations
 """
 
 import sys
-import time
+import os
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon
 
 
 def main():
@@ -19,6 +20,11 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("FRESCO Studio")
     app.setOrganizationName("FRESCO Team")
+
+    # Set application icon
+    icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icon.png')
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
 
     # Set application-wide font
     from PySide6.QtGui import QFont
@@ -56,8 +62,8 @@ def main():
     splash.setProgress(100, "Ready!")
     app.processEvents()
 
-    # Brief pause to show completion
-    QTimer.singleShot(500, lambda: finish_splash(splash, window))
+    # Immediately show main window when ready
+    finish_splash(splash, window)
 
     sys.exit(app.exec())
 

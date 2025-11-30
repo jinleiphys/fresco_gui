@@ -82,9 +82,52 @@ class InputPanel(QWidget):
         # Connect wizard generation signal to update text editor
         self.wizard.input_generated.connect(self.set_input_text)
 
-        # Add tabs
+        # Add tabs - Wizard first as recommended option
+        self.tabs.addTab(self.wizard, "✨ Input Wizard")
         self.tabs.addTab(text_editor_widget, "Text Editor")
-        self.tabs.addTab(self.wizard, "Input Wizard")
+
+        # Style the tabs to highlight the wizard
+        self.tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                background: white;
+            }
+            QTabBar::tab {
+                padding: 10px 20px;
+                margin-right: 4px;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+                font-weight: 500;
+            }
+            QTabBar::tab:selected {
+                background: white;
+                border: 1px solid #d1d5db;
+                border-bottom: none;
+                color: #1f2937;
+            }
+            QTabBar::tab:!selected {
+                background: #f3f4f6;
+                border: 1px solid #e5e7eb;
+                color: #6b7280;
+            }
+            QTabBar::tab:first {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #dbeafe, stop:1 #ede9fe);
+                border: 2px solid #3b82f6;
+                font-weight: 600;
+                color: #1e40af;
+            }
+            QTabBar::tab:first:selected {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #eff6ff, stop:1 #f5f3ff);
+                border: 2px solid #2563eb;
+                border-bottom: none;
+            }
+        """)
+
+        # Default to Wizard tab (index 0)
+        self.tabs.setCurrentIndex(0)
 
         layout.addWidget(self.tabs)
 
@@ -99,7 +142,7 @@ class InputPanel(QWidget):
         self.text_edit.setPlainText(text)
         self._loading_file = False
         # Automatically switch to Text Editor tab after input is generated
-        self.tabs.setCurrentIndex(0)  # 0 = Text Editor tab
+        self.tabs.setCurrentIndex(1)  # 1 = Text Editor tab (Wizard is 0)
 
     def load_from_file(self, file_path):
         """Load input from file"""
@@ -134,7 +177,7 @@ class InputPanel(QWidget):
         self.set_input_text(content)
 
         # Stay on text editor tab for loaded files
-        self.tabs.setCurrentIndex(0)  # Index 0 is Text Editor tab
+        self.tabs.setCurrentIndex(1)  # Index 1 is Text Editor tab (Wizard is 0)
 
     def save_to_file(self, file_path):
         """Save input to file"""
