@@ -141,5 +141,5 @@ The form will be populated with the default example for that calculation type.
 ## Contact
 
 For questions about these examples or the GUI:
-- Email: jinlei@fewbody.com
+- Email: jinl@tongji.edu.cn
 - GUI Repository: https://github.com/your-repo/fresco_gui

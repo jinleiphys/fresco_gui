@@ -302,7 +302,7 @@ brew install qt6
 ## 技术支持
 
 如有问题或疑问：
-- 联系邮箱: jinlei@fewbody.com
+- 联系邮箱: jinl@tongji.edu.cn
 - 查看 fresco_code/man 目录中的 FRESCO 文档
 
 ---

@@ -343,5 +343,5 @@ Calculation types:
 
 ## Contact
 
-- Project maintainer: jinlei@fewbody.com
+- Project maintainer: jinl@tongji.edu.cn
 - FRESCO documentation: `fresco_code/man/`

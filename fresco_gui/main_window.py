@@ -397,7 +397,7 @@ class MainWindow(QMainWindow):
 <p><b>FRESCO</b> - Finite Range Extended Search Code<br>
 for coupled reaction channels</p>
 <br>
-<p><b>Contact:</b> jinlei@fewbody.com</p>
+<p><b>Contact:</b> jinl@tongji.edu.cn</p>
 <br>
 <p>Built with PySide6 and matplotlib</p>
 """
@@ -418,7 +418,7 @@ for coupled reaction channels</p>
 <li>View results in the Plot tab</li>
 </ol>
 <br>
-<p><b>Contact:</b> jinlei@fewbody.com for support</p>
+<p><b>Contact:</b> jinl@tongji.edu.cn for support</p>
 """
         QMessageBox.information(self, "Documentation", docs_text)
 

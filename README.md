@@ -354,7 +354,7 @@ This GUI is part of the FRESCO project and follows the same license.
 ## Support
 
 For issues or questions:
-- Contact: jinlei@fewbody.com
+- Contact: jinl@tongji.edu.cn
 - Visit the FRESCO documentation in fresco_code/man
 
 ## Credits
