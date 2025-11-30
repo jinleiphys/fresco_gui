@@ -41,6 +41,48 @@ cd "$SCRIPT_DIR"
 print_info "Working directory: $SCRIPT_DIR"
 echo ""
 
+# Step 0: Initialize conda for this script session
+# This ensures conda-installed tools (like gfortran) are available
+init_conda() {
+    # Try common conda locations
+    local CONDA_LOCATIONS=(
+        "$HOME/miniconda3"
+        "$HOME/anaconda3"
+        "$HOME/miniforge3"
+        "/opt/miniconda3"
+        "/opt/anaconda3"
+        "/opt/homebrew/Caskroom/miniconda/base"
+        "/usr/local/miniconda3"
+    )
+
+    # First try conda info if conda command exists
+    if command -v conda &> /dev/null; then
+        CONDA_BASE=$(conda info --base 2>/dev/null)
+        if [ -n "$CONDA_BASE" ] && [ -f "$CONDA_BASE/etc/profile.d/conda.sh" ]; then
+            source "$CONDA_BASE/etc/profile.d/conda.sh"
+            return 0
+        fi
+    fi
+
+    # Otherwise search common locations
+    for loc in "${CONDA_LOCATIONS[@]}"; do
+        if [ -f "$loc/etc/profile.d/conda.sh" ]; then
+            source "$loc/etc/profile.d/conda.sh"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# Try to initialize conda early (for gfortran detection)
+if init_conda; then
+    print_info "Conda initialized for this session"
+else
+    print_warning "Could not initialize conda yet (will install if needed)"
+fi
+echo ""
+
 # Step 1: Check and install conda if needed
 print_info "Checking for conda installation..."
 if ! command -v conda &> /dev/null; then
@@ -249,6 +291,34 @@ fi
 # Build FRESCO
 print_info "Building FRESCO main program..."
 cd fresco_code/source
+
+# Ensure gfortran is available for make
+# gfortran might be in base conda env or system path, so we need to find it
+GFORTRAN_PATH=""
+if command -v gfortran &> /dev/null; then
+    GFORTRAN_PATH=$(which gfortran)
+else
+    # Search common locations
+    for gf_path in "/opt/miniconda3/bin/gfortran" "$HOME/miniconda3/bin/gfortran" \
+                   "/opt/homebrew/bin/gfortran" "/usr/local/bin/gfortran" \
+                   "$CONDA_BASE/bin/gfortran"; do
+        if [ -x "$gf_path" ]; then
+            GFORTRAN_PATH="$gf_path"
+            break
+        fi
+    done
+fi
+
+if [ -z "$GFORTRAN_PATH" ]; then
+    print_error "gfortran not found! Please install gfortran first."
+    exit 1
+fi
+
+print_info "Using gfortran: $GFORTRAN_PATH"
+
+# Add gfortran directory to PATH for make
+export PATH="$(dirname "$GFORTRAN_PATH"):$PATH"
+
 make clean 2>/dev/null || true
 make
 
