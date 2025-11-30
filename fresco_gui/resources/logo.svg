@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient for the nucleus -->
+    <radialGradient id="nucleusGradient" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" style="stop-color:#4F8EF7;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#2563EB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- Gradient for orbits -->
+    <linearGradient id="orbitGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:0.4" />
+    </linearGradient>
+
+    <linearGradient id="orbitGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#34D399;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#10B981;stop-opacity:0.4" />
+    </linearGradient>
+
+    <linearGradient id="orbitGradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F472B6;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#EC4899;stop-opacity:0.4" />
+    </linearGradient>
+
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#1E40AF" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle (optional, for contrast) -->
+  <circle cx="128" cy="128" r="120" fill="none" stroke="#E5E7EB" stroke-width="1" opacity="0.3"/>
+
+  <!-- Electron orbits (ellipses) -->
+  <!-- Orbit 1 - tilted -->
+  <ellipse cx="128" cy="128" rx="90" ry="35"
+           fill="none" stroke="url(#orbitGradient1)" stroke-width="2.5"
+           transform="rotate(-30, 128, 128)" filter="url(#glow)"/>
+
+  <!-- Orbit 2 - tilted opposite -->
+  <ellipse cx="128" cy="128" rx="90" ry="35"
+           fill="none" stroke="url(#orbitGradient2)" stroke-width="2.5"
+           transform="rotate(30, 128, 128)" filter="url(#glow)"/>
+
+  <!-- Orbit 3 - horizontal -->
+  <ellipse cx="128" cy="128" rx="90" ry="35"
+           fill="none" stroke="url(#orbitGradient3)" stroke-width="2.5"
+           transform="rotate(90, 128, 128)" filter="url(#glow)"/>
+
+  <!-- Central nucleus -->
+  <circle cx="128" cy="128" r="32" fill="url(#nucleusGradient)" filter="url(#shadow)"/>
+
+  <!-- Nucleus highlight -->
+  <ellipse cx="120" cy="118" rx="12" ry="8" fill="white" opacity="0.3"/>
+
+  <!-- Electrons on orbits -->
+  <!-- Electron 1 -->
+  <circle cx="200" cy="92" r="8" fill="#60A5FA" filter="url(#glow)">
+    <animate attributeName="cx" values="200;56;200" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="92;164;92" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Electron 2 -->
+  <circle cx="56" cy="92" r="8" fill="#34D399" filter="url(#glow)">
+    <animate attributeName="cx" values="56;200;56" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="92;164;92" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Electron 3 -->
+  <circle cx="128" cy="38" r="8" fill="#F472B6" filter="url(#glow)">
+    <animate attributeName="cy" values="38;218;38" dur="3s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Letter F in nucleus -->
+  <text x="128" y="138" font-family="SF Pro Display, Helvetica, Arial, sans-serif"
+        font-size="32" font-weight="700" fill="white" text-anchor="middle">F</text>
+</svg>
