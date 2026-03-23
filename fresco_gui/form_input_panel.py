@@ -1084,10 +1084,11 @@ class TransferReactionForm(QWidget):
         transfer_layout.addRow("Total j:", self.trans_j)
 
         self.trans_nodes = QSpinBox()
-        self.trans_nodes.setRange(0, 20)
-        self.trans_nodes.setValue(0)
-        self.trans_nodes.setToolTip("Number of radial nodes")
-        transfer_layout.addRow("Radial nodes (n-1):", self.trans_nodes)
+        self.trans_nodes.setRange(1, 20)
+        self.trans_nodes.setValue(1)
+        self.trans_nodes.setToolTip("Principal quantum number N (= radial nodes + 1).\n"
+                                    "Examples: 1s→N=1, 1p→N=1, 1d→N=1, 2s→N=2.")
+        transfer_layout.addRow("Principal N (nn):", self.trans_nodes)
 
         self.binding_energy = QDoubleSpinBox()
         self.binding_energy.setRange(0.0, 50.0)
@@ -1354,11 +1355,6 @@ class FormInputPanel(QWidget):
             input_text = "! Unknown calculation type\n"
 
         self.input_generated.emit(input_text)
-
-        # Show confirmation
-        QMessageBox.information(self, "Input Generated",
-                              "FRESCO input file has been generated!\n\n"
-                              "You will be automatically switched to the 'Text Editor' tab.")
 
     def get_current_input(self):
         """Get the current input text from the active form"""

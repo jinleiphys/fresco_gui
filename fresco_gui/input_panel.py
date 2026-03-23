@@ -47,6 +47,12 @@ class InputPanel(QWidget):
         header_layout.addWidget(header_label)
         header_layout.addStretch()
 
+        # Back to Input Wizard button
+        self.back_to_wizard_btn = QPushButton("← Back to Input Wizard")
+        self.back_to_wizard_btn.setToolTip("Switch back to the Input Wizard to modify parameters")
+        self.back_to_wizard_btn.clicked.connect(lambda: self.tabs.setCurrentIndex(0))
+        header_layout.addWidget(self.back_to_wizard_btn)
+
         # Help button
         help_btn = QPushButton("Show Example")
         help_btn.clicked.connect(self.show_example)
@@ -72,7 +78,7 @@ class InputPanel(QWidget):
         text_layout.addWidget(self.text_edit)
 
         # Footer with hints for text editor
-        footer = QLabel("Tip: Edit FRESCO input directly here, or click 'Show Example' to load p+Ni78 example. Auto-save enabled (2s after edit).")
+        footer = QLabel("Tip: Edit FRESCO input directly here, or click '← Back to Input Wizard' to modify parameters. Auto-save enabled (2s after edit).")
         footer.setObjectName("footerHint")
         footer.setWordWrap(True)
         text_layout.addWidget(footer)

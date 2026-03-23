@@ -152,11 +152,13 @@ class SinglePotentialWidget(QWidget):
 
     def add_parameter_widget(self, name, label_text, tooltip, default, minimum, maximum, step):
         """Helper to add a numeric parameter widget"""
+        # Always use QDoubleSpinBox for potential parameters to preserve decimal precision
+        # (e.g., V=37.2 MeV must not be truncated to 37 by QSpinBox)
+        widget = QDoubleSpinBox()
         if step and step < 1:
-            widget = QDoubleSpinBox()
             widget.setDecimals(len(str(step).split('.')[-1]) if '.' in str(step) else 2)
         else:
-            widget = QSpinBox()
+            widget.setDecimals(2)
 
         widget.setMinimum(minimum)
         widget.setMaximum(maximum)
@@ -333,11 +335,16 @@ class SinglePotentialWidget(QWidget):
             print(f"      WARNING: 'kp' not in values! Keeping default kp_value={self.kp_value}")
 
         # Set potential type first (this determines which parameters are shown)
+        # Block signals to prevent on_type_changed() from being called prematurely,
+        # then manually call it to create widgets before setting values
         if 'type' in values:
             pot_type = values['type']
             for i in range(self.type_combo.count()):
                 if self.type_combo.itemData(i) == pot_type:
+                    self.type_combo.blockSignals(True)
                     self.type_combo.setCurrentIndex(i)
+                    self.type_combo.blockSignals(False)
+                    self.on_type_changed()
                     print(f"      Set type = {pot_type}")
                     break
 

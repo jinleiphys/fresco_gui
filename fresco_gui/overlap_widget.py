@@ -99,9 +99,11 @@ class SingleOverlapWidget(QWidget):
         form_layout.addRow("CH1:", self.ch1)
 
         self.nn = QSpinBox()
-        self.nn.setRange(0, 20)
+        self.nn.setRange(1, 20)
         self.nn.setValue(1)
-        self.nn.setToolTip("Number of nodes (one-particle) or NPAIRS (two-particle)")
+        self.nn.setToolTip("Principal quantum number N (one-particle) or NPAIRS (two-particle).\n"
+                           "Examples: 1s→N=1, 1p→N=1, 1d→N=1, 2s→N=2, 2p→N=2.\n"
+                           "N = number of radial nodes + 1.")
         form_layout.addRow("NN/NPAIRS:", self.nn)
 
         self.l = QSpinBox()
@@ -233,7 +235,8 @@ class SingleOverlapWidget(QWidget):
             self.be.setToolTip("EPS: threshold percentage for omitting small components")
         else:
             self.one_particle_label.setText("<b>One-Particle Parameters:</b>")
-            self.nn.setToolTip("Number of radial nodes")
+            self.nn.setToolTip("Principal quantum number N (= radial nodes + 1).\n"
+                               "Examples: 1s→N=1, 1p→N=1, 1d→N=1, 2s→N=2.")
             self.l.setToolTip("L=LN: angular momentum")
             self.lmax.setToolTip("Maximum L in summation")
             self.sn.setToolTip("Intrinsic spin of bound nucleon")

@@ -379,6 +379,8 @@ class MainWindow(QMainWindow):
         else:
             self.log_widget.append_error(f"Calculation failed with exit code {exit_code}")
             self.status_bar.showMessage(f"Calculation failed (exit code: {exit_code})")
+            # Clear stale plot from previous successful run
+            self.plot_widget.clear_plot()
 
         self.is_running_fresco = False
 
