@@ -38,13 +38,22 @@ class FrescoRunner(QObject):
             working_dir = os.path.dirname(input_file)
         self.process.setWorkingDirectory(working_dir)
 
-        # Start the process with input redirection
-        self.process.start(executable, [])
-
-        # Write input file content to stdin
+        # Read input content first
+        input_content = None
         if os.path.exists(input_file):
             with open(input_file, 'r') as f:
                 input_content = f.read()
+
+        # Start the process
+        self.process.start(executable, [])
+
+        # Wait for process to actually start before writing to stdin
+        if not self.process.waitForStarted(5000):
+            self.error_ready.emit(f"Failed to start: {executable}")
+            return
+
+        # Write input file content to stdin
+        if input_content:
             self.process.write(input_content.encode())
             self.process.closeWriteChannel()
 
