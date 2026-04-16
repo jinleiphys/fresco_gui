@@ -24,6 +24,20 @@ class FrescoRunner(QObject):
             self.error_ready.emit("A calculation is already running")
             return
 
+        # Validate executable path
+        if not executable or not os.path.isfile(executable):
+            self.error_ready.emit(
+                f"FRESCO executable not found: '{executable}'\n"
+                "Please check that FRESCO is compiled and the path is correct."
+            )
+            return
+        if not os.access(executable, os.X_OK):
+            self.error_ready.emit(
+                f"FRESCO executable is not executable: '{executable}'\n"
+                "Try: chmod +x {executable}"
+            )
+            return
+
         self.process = QProcess()
         self.process.setProcessChannelMode(QProcess.MergedChannels)
 

@@ -1032,6 +1032,9 @@ NAMELIST
                         pw.mass_number.setValue(round(proj_mass))
                         pw.atomic_number.setValue(int(p1.get('zp', 0)))
                         pw.spin.setValue(abs(proj_spin))
+                        if states_list and hasattr(pw, 'parity'):
+                            bandp = states_list[0].get('bandp', 1)
+                            pw.parity.setCurrentIndex(0 if bandp > 0 else 1)
                     if hasattr(step, 'target_widget'):
                         tw = step.target_widget
                         tw.name_label.setText(p1.get('namet', ''))
@@ -1040,6 +1043,9 @@ NAMELIST
                         tw.mass_number.setValue(round(targ_mass))
                         tw.atomic_number.setValue(int(p1.get('zt', 0)))
                         tw.spin.setValue(abs(targ_spin))
+                        if states_list and hasattr(tw, 'parity'):
+                            bandt = states_list[0].get('bandt', 1)
+                            tw.parity.setCurrentIndex(0 if bandt > 0 else 1)
 
         # 6. For transfer: populate exit channel
         if detected_type == ReactionType.TRANSFER and len(partitions) >= 2:
@@ -1060,6 +1066,9 @@ NAMELIST
                         ew.mass_number.setValue(round(eject_mass))
                         ew.atomic_number.setValue(int(p2.get('zp', 0)))
                         ew.spin.setValue(abs(eject_spin))
+                        if len(states_list) >= 2 and hasattr(ew, 'parity'):
+                            bandp2 = states_list[1].get('bandp', 1)
+                            ew.parity.setCurrentIndex(0 if bandp2 > 0 else 1)
                     if hasattr(step, 'residual_widget'):
                         rw = step.residual_widget
                         rw.name_label.setText(p2.get('namet', ''))
@@ -1068,6 +1077,9 @@ NAMELIST
                         rw.mass_number.setValue(round(resid_mass))
                         rw.atomic_number.setValue(int(p2.get('zt', 0)))
                         rw.spin.setValue(abs(resid_spin))
+                        if len(states_list) >= 2 and hasattr(rw, 'parity'):
+                            bandt2 = states_list[1].get('bandt', 1)
+                            rw.parity.setCurrentIndex(0 if bandt2 > 0 else 1)
 
         # 6b. For inelastic: populate states from file
         if detected_type == ReactionType.INELASTIC and len(states_list) >= 2:

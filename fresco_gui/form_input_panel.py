@@ -239,9 +239,9 @@ class ElasticScatteringForm(QWidget):
         self.proj_mass.setValue(4.0)
         proj_layout.addRow("Mass (amu):", self.proj_mass)
 
-        self.proj_charge = QDoubleSpinBox()
-        self.proj_charge.setRange(0.0, 100.0)
-        self.proj_charge.setValue(2.0)
+        self.proj_charge = QSpinBox()
+        self.proj_charge.setRange(0, 120)
+        self.proj_charge.setValue(2)
         proj_layout.addRow("Charge:", self.proj_charge)
 
         self.proj_spin = QDoubleSpinBox()
@@ -269,9 +269,9 @@ class ElasticScatteringForm(QWidget):
         self.targ_mass.setValue(12.0)
         targ_layout.addRow("Mass (amu):", self.targ_mass)
 
-        self.targ_charge = QDoubleSpinBox()
-        self.targ_charge.setRange(0.0, 100.0)
-        self.targ_charge.setValue(6.0)
+        self.targ_charge = QSpinBox()
+        self.targ_charge.setRange(0, 120)
+        self.targ_charge.setValue(6)
         targ_layout.addRow("Charge:", self.targ_charge)
 
         self.targ_spin = QDoubleSpinBox()
@@ -567,9 +567,9 @@ class InelasticScatteringForm(QWidget):
         self.proj_mass.setValue(4.0)
         proj_layout.addRow("Mass (amu):", self.proj_mass)
 
-        self.proj_charge = QDoubleSpinBox()
-        self.proj_charge.setRange(0.0, 100.0)
-        self.proj_charge.setValue(2.0)
+        self.proj_charge = QSpinBox()
+        self.proj_charge.setRange(0, 120)
+        self.proj_charge.setValue(2)
         proj_layout.addRow("Charge:", self.proj_charge)
 
         self.proj_spin = QDoubleSpinBox()
@@ -597,9 +597,9 @@ class InelasticScatteringForm(QWidget):
         self.targ_mass.setValue(12.0)
         targ_layout.addRow("Mass (amu):", self.targ_mass)
 
-        self.targ_charge = QDoubleSpinBox()
-        self.targ_charge.setRange(0.0, 100.0)
-        self.targ_charge.setValue(6.0)
+        self.targ_charge = QSpinBox()
+        self.targ_charge.setRange(0, 120)
+        self.targ_charge.setValue(6)
         targ_layout.addRow("Charge:", self.targ_charge)
 
         self.targ_spin = QDoubleSpinBox()
@@ -974,9 +974,9 @@ class TransferReactionForm(QWidget):
         self.proj_mass.setValue(2.0)
         entrance_layout.addRow("Projectile mass (amu):", self.proj_mass)
 
-        self.proj_charge = QDoubleSpinBox()
-        self.proj_charge.setRange(0.0, 100.0)
-        self.proj_charge.setValue(1.0)
+        self.proj_charge = QSpinBox()
+        self.proj_charge.setRange(0, 120)
+        self.proj_charge.setValue(1)
         entrance_layout.addRow("Projectile charge:", self.proj_charge)
 
         entrance_layout.addRow(QLabel(""))  # Spacer
@@ -990,9 +990,9 @@ class TransferReactionForm(QWidget):
         self.targ_mass.setValue(40.0)
         entrance_layout.addRow("Target mass (amu):", self.targ_mass)
 
-        self.targ_charge = QDoubleSpinBox()
-        self.targ_charge.setRange(0.0, 100.0)
-        self.targ_charge.setValue(20.0)
+        self.targ_charge = QSpinBox()
+        self.targ_charge.setRange(0, 120)
+        self.targ_charge.setValue(20)
         entrance_layout.addRow("Target charge:", self.targ_charge)
 
         entrance_group.setLayout(entrance_layout)
@@ -1014,9 +1014,9 @@ class TransferReactionForm(QWidget):
         self.eject_mass.setValue(1.0078)
         exit_layout.addRow("Ejectile mass (amu):", self.eject_mass)
 
-        self.eject_charge = QDoubleSpinBox()
-        self.eject_charge.setRange(0.0, 100.0)
-        self.eject_charge.setValue(1.0)
+        self.eject_charge = QSpinBox()
+        self.eject_charge.setRange(0, 120)
+        self.eject_charge.setValue(1)
         exit_layout.addRow("Ejectile charge:", self.eject_charge)
 
         exit_layout.addRow(QLabel(""))  # Spacer
@@ -1030,9 +1030,9 @@ class TransferReactionForm(QWidget):
         self.resid_mass.setValue(41.0)
         exit_layout.addRow("Residual mass (amu):", self.resid_mass)
 
-        self.resid_charge = QDoubleSpinBox()
-        self.resid_charge.setRange(0.0, 100.0)
-        self.resid_charge.setValue(20.0)
+        self.resid_charge = QSpinBox()
+        self.resid_charge.setRange(0, 120)
+        self.resid_charge.setValue(20)
         exit_layout.addRow("Residual charge:", self.resid_charge)
 
         exit_layout.addRow(QLabel(""))  # Spacer
@@ -1063,9 +1063,9 @@ class TransferReactionForm(QWidget):
         self.trans_mass.setValue(1.0087)
         transfer_layout.addRow("Mass (amu):", self.trans_mass)
 
-        self.trans_charge = QDoubleSpinBox()
-        self.trans_charge.setRange(0.0, 100.0)
-        self.trans_charge.setValue(0.0)
+        self.trans_charge = QSpinBox()
+        self.trans_charge.setRange(0, 120)
+        self.trans_charge.setValue(0)
         transfer_layout.addRow("Charge:", self.trans_charge)
 
         transfer_layout.addRow(QLabel(""))  # Spacer
