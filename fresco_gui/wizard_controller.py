@@ -634,30 +634,80 @@ NAMELIST
         resid_bandt = 1 if resid_parity > 0 else -1
         states2 = f" &STATES jp={eject_spin} bandp=1 ep=0.0 cpot=2 jt={resid_spin} bandt={resid_bandt} et=0.0  /\n"
 
-        # Build POT namelists for all 5 sets
+        # Build POT namelists from wizard potential data
+        # Group potentials by kp
+        pot_by_kp = {}
+        for pot in pots:
+            kp = pot.get('kp', 1)
+            if kp not in pot_by_kp:
+                pot_by_kp[kp] = []
+            pot_by_kp[kp].append(pot)
+
+        # Mass number mapping for Coulomb ap/at per kp
+        kp_mass_map = {
+            1: (proj_a, targ_a),
+            2: (eject_a, resid_a),
+            3: (None, proj_a),      # binding: no ap, at=projectile
+            4: (None, resid_a),     # binding: no ap, at=residual
+            5: (proj_a, targ_a),    # remnant: same as entrance
+        }
+
         pot_lines = []
+        for kp in sorted(pot_by_kp.keys()):
+            if pot_lines:
+                pot_lines.append("")  # blank line between kp groups
+            for pot in pot_by_kp[kp]:
+                pot_type = pot.get('type', 0)
+                if pot_type == 0:  # Coulomb
+                    ap_val, at_val = kp_mass_map.get(kp, (proj_a, targ_a))
+                    rc = pot.get('rc', 1.25)
+                    if ap_val is not None:
+                        pot_lines.append(f" &POT kp={kp} ap={ap_val:.3f} at={at_val:.3f} rc={rc}  /")
+                    else:
+                        pot_lines.append(f" &POT kp={kp} at={at_val} rc={rc}  /")
+                elif pot_type == 1:  # Volume Woods-Saxon
+                    V = pot.get('V', 50.0)
+                    r0 = pot.get('r0', 1.2)
+                    a = pot.get('a', 0.65)
+                    W = pot.get('W', 0.0)
+                    rW = pot.get('rW', 1.2)
+                    aW = pot.get('aW', 0.65)
+                    if W != 0.0:
+                        pot_lines.append(f" &POT kp={kp} type=1 p1={V} p2={r0} p3={a} p4={W} p5={rW} p6={aW}  /")
+                    else:
+                        pot_lines.append(f" &POT kp={kp} type=1 p1={V} p2={r0} p3={a}  /")
+                elif pot_type == 2:  # Surface Woods-Saxon
+                    Vd = pot.get('Vd', 0.0)
+                    r0d = pot.get('r0d', 1.32)
+                    ad = pot.get('ad', 0.52)
+                    Wd = pot.get('Wd', 10.0)
+                    rWd = pot.get('rWd', 1.32)
+                    aWd = pot.get('aWd', 0.52)
+                    pot_lines.append(f" &POT kp={kp} type=2 p1={Vd} p2={r0d} p3={ad} p4={Wd} p5={rWd} p6={aWd}  /")
+                elif pot_type == 3:  # Spin-orbit
+                    Vso = pot.get('Vso', 6.0)
+                    rso = pot.get('rso', 1.2)
+                    aso = pot.get('aso', 0.65)
+                    pot_lines.append(f" &POT kp={kp} type=3 p1={Vso} p2={rso} p3={aso}  /")
 
-        # kp=1: Entrance channel
-        pot_lines.append(f" &POT kp=1 ap={proj_a:.3f} at={targ_a:.3f} rc=1.3  /")
-        pot_lines.append(f" &POT kp=1 type=1 p1=37.2 p2=1.2 p3=0.6  p4=21.6 p5=1.2 p6=0.69  /")
-
-        # kp=2: Exit channel
-        pot_lines.append(f"\n &POT kp=2 ap={eject_a:.3f} at={resid_a:.3f} rc=1.3  /")
-        pot_lines.append(f" &POT kp=2 type=1 p1=37.2 p2=1.2 p3=0.6  p4=21.6 p5=1.2 p6=0.69  /")
-
-        # kp=3: Projectile binding (transferred particle in projectile)
-        pot_lines.append(f"\n &POT kp=3 at={proj_a} rc=1.2  /")
-        pot_lines.append(f" &POT kp=3 type=1 p1=50.00 p2=1.2 p3=0.65   /")
-        pot_lines.append(f" &POT kp=3 type=3 p1=6.00  p2=1.2 p3=0.65   /")
-
-        # kp=4: Residual binding (transferred particle in residual)
-        pot_lines.append(f"\n &POT kp=4 at={resid_a} rc=1.2  /")
-        pot_lines.append(f" &POT kp=4 type=1 p1=50.00 p2=1.2 p3=0.65   /")
-        pot_lines.append(f" &POT kp=4 type=3 p1=6.00  p2=1.2 p3=0.65   /")
-
-        # kp=5: Remnant potential (core-core)
-        pot_lines.append(f"\n &POT kp=5 ap={proj_a:.3f} at={targ_a:.3f} rc=1.3  /")
-        pot_lines.append(f" &POT kp=5 type=1 p1=37.2 p2=1.2 p3=0.6  p4=21.6 p5=1.2 p6=0.69  /")
+        # Fallback if no potentials from wizard
+        if not pot_lines:
+            pot_lines.append(f" &POT kp=1 ap={proj_a:.3f} at={targ_a:.3f} rc=1.3  /")
+            pot_lines.append(f" &POT kp=1 type=1 p1=37.2 p2=1.2 p3=0.6 p4=21.6 p5=1.2 p6=0.69  /")
+            pot_lines.append(f"")
+            pot_lines.append(f" &POT kp=2 ap={eject_a:.3f} at={resid_a:.3f} rc=1.3  /")
+            pot_lines.append(f" &POT kp=2 type=1 p1=37.2 p2=1.2 p3=0.6 p4=21.6 p5=1.2 p6=0.69  /")
+            pot_lines.append(f"")
+            pot_lines.append(f" &POT kp=3 at={proj_a} rc=1.2  /")
+            pot_lines.append(f" &POT kp=3 type=1 p1=50.00 p2=1.2 p3=0.65  /")
+            pot_lines.append(f" &POT kp=3 type=3 p1=6.00 p2=1.2 p3=0.65  /")
+            pot_lines.append(f"")
+            pot_lines.append(f" &POT kp=4 at={resid_a} rc=1.2  /")
+            pot_lines.append(f" &POT kp=4 type=1 p1=50.00 p2=1.2 p3=0.65  /")
+            pot_lines.append(f" &POT kp=4 type=3 p1=6.00 p2=1.2 p3=0.65  /")
+            pot_lines.append(f"")
+            pot_lines.append(f" &POT kp=5 ap={proj_a:.3f} at={targ_a:.3f} rc=1.3  /")
+            pot_lines.append(f" &POT kp=5 type=1 p1=37.2 p2=1.2 p3=0.6 p4=21.6 p5=1.2 p6=0.69  /")
 
         pot_text = "\n".join(pot_lines)
 
@@ -784,6 +834,219 @@ NAMELIST
                 lines.append(f"&POT kp={kp} type=3 p1={Vso} p2={rso} p3={aso} /")
 
         return '\n'.join(lines) + '\n'
+
+    def populate_from_input_text(self, input_text: str):
+        """
+        Parse a FRESCO input file and populate wizard steps with the extracted data.
+
+        This allows users to load a .in file, go back to the wizard, and see
+        all the parameters from the file populated in the wizard fields.
+
+        Args:
+            input_text: Content of a FRESCO input file
+        """
+        from parameter_manager import (
+            parse_fresco_parameter_values,
+            parse_all_partition_namelists,
+            parse_pot_namelists,
+            parse_states_namelists,
+            parse_overlap_namelists,
+            detect_calculation_type,
+        )
+        from reaction_parser import parse_reaction, ReactionType
+
+        if not input_text or not input_text.strip():
+            return
+
+        # 1. Detect calculation type and rebuild wizard if needed
+        calc_type = detect_calculation_type(input_text)
+        type_map = {
+            "elastic": ReactionType.ELASTIC,
+            "inelastic": ReactionType.INELASTIC,
+            "transfer": ReactionType.TRANSFER,
+        }
+        detected_type = type_map.get(calc_type, ReactionType.ELASTIC)
+
+        if detected_type != self.state.reaction_type:
+            self.state.reaction_type = detected_type
+            self._clear_steps()
+            if detected_type == ReactionType.ELASTIC:
+                self._setup_elastic_steps()
+            elif detected_type == ReactionType.INELASTIC:
+                self._setup_inelastic_steps()
+            elif detected_type == ReactionType.TRANSFER:
+                self._setup_transfer_steps()
+
+        # 2. Parse partitions
+        partitions = parse_all_partition_namelists(input_text)
+        states_list = parse_states_namelists(input_text)
+
+        # 3. Parse FRESCO parameters
+        fresco_params = parse_fresco_parameter_values(input_text)
+        energy = fresco_params.pop('elab', 10.0)
+        if isinstance(energy, str):
+            # Handle multi-value elab: take the first value
+            try:
+                energy = float(energy.split()[0])
+            except (ValueError, IndexError):
+                energy = 10.0
+
+        # 4. Build reaction equation from partitions and set reaction step
+        if partitions and self.step_widgets:
+            p1 = partitions[0]
+            proj_name = p1.get('namep', 'p')
+            targ_name = p1.get('namet', '12C')
+
+            if detected_type == ReactionType.TRANSFER and len(partitions) >= 2:
+                p2 = partitions[1]
+                eject_name = p2.get('namep', 'p')
+                resid_name = p2.get('namet', '13C')
+                equation = f"{targ_name}({proj_name},{eject_name}){resid_name}"
+            else:
+                equation = f"{proj_name}+{targ_name}"
+
+            # Set reaction step data
+            self.step_widgets[0].set_data({
+                'equation': equation,
+                'energy': energy,
+            })
+
+            # Try to trigger the reaction parsing so subsequent steps get set up
+            if hasattr(self.step_widgets[0], '_parse_equation'):
+                self.step_widgets[0]._parse_equation()
+
+        # 5. Populate particle config from partition data
+        for step in self.step_widgets:
+            if hasattr(step, 'step_id') and step.step_id == 'particle_config':
+                if partitions:
+                    p1 = partitions[0]
+                    proj_spin = 0.0
+                    targ_spin = 0.0
+                    if states_list:
+                        proj_spin = states_list[0].get('jp', 0.0)
+                        targ_spin = states_list[0].get('jt', 0.0)
+                    if hasattr(step, 'projectile_widget'):
+                        pw = step.projectile_widget
+                        pw.name_label.setText(p1.get('namep', ''))
+                        pw.mass.setValue(p1.get('massp', 1.0))
+                        pw.atomic_number.setValue(int(p1.get('zp', 0)))
+                        pw.spin.setValue(abs(proj_spin))
+                    if hasattr(step, 'target_widget'):
+                        tw = step.target_widget
+                        tw.name_label.setText(p1.get('namet', ''))
+                        tw.mass.setValue(p1.get('masst', 12.0))
+                        tw.atomic_number.setValue(int(p1.get('zt', 0)))
+                        tw.spin.setValue(abs(targ_spin))
+
+        # 6. For transfer: populate exit channel
+        if detected_type == ReactionType.TRANSFER and len(partitions) >= 2:
+            p2 = partitions[1]
+            eject_spin = 0.0
+            resid_spin = 0.0
+            if len(states_list) >= 2:
+                eject_spin = states_list[1].get('jp', 0.0)
+                resid_spin = states_list[1].get('jt', 0.0)
+
+            for step in self.step_widgets:
+                if hasattr(step, 'step_id') and step.step_id == 'exit_channel':
+                    if hasattr(step, 'ejectile_widget'):
+                        ew = step.ejectile_widget
+                        ew.name_label.setText(p2.get('namep', ''))
+                        ew.mass.setValue(p2.get('massp', 1.0))
+                        ew.atomic_number.setValue(int(p2.get('zp', 0)))
+                        ew.spin.setValue(abs(eject_spin))
+                    if hasattr(step, 'residual_widget'):
+                        rw = step.residual_widget
+                        rw.name_label.setText(p2.get('namet', ''))
+                        rw.mass.setValue(p2.get('masst', 13.0))
+                        rw.atomic_number.setValue(int(p2.get('zt', 0)))
+                        rw.spin.setValue(abs(resid_spin))
+                    if hasattr(step, 'qval_input'):
+                        step.qval_input.setValue(p2.get('qval', 0.0))
+
+        # 7. Populate potentials
+        pot_list = parse_pot_namelists(input_text)
+        if pot_list:
+            # Map p1-p6 to named parameters based on pot type
+            def _map_pot_params(raw_pot):
+                """Convert raw p1/p2/... to named params for PotentialComponentWidget"""
+                pot_type = raw_pot.get('type', 0)
+                mapped = {'type': pot_type, 'kp': raw_pot.get('kp', 1)}
+
+                if pot_type == 0:  # Coulomb
+                    mapped['rc'] = raw_pot.get('rc', raw_pot.get('p3', 1.25))
+                elif pot_type == 1:  # Volume
+                    mapped['V'] = raw_pot.get('p1', 50.0)
+                    mapped['r0'] = raw_pot.get('p2', 1.2)
+                    mapped['a'] = raw_pot.get('p3', 0.65)
+                    mapped['W'] = raw_pot.get('p4', 0.0)
+                    mapped['rW'] = raw_pot.get('p5', 1.2)
+                    mapped['aW'] = raw_pot.get('p6', 0.65)
+                elif pot_type == 2:  # Surface
+                    mapped['Vd'] = raw_pot.get('p1', 0.0)
+                    mapped['r0d'] = raw_pot.get('p2', 1.32)
+                    mapped['ad'] = raw_pot.get('p3', 0.52)
+                    mapped['Wd'] = raw_pot.get('p4', 10.0)
+                    mapped['rWd'] = raw_pot.get('p5', 1.32)
+                    mapped['aWd'] = raw_pot.get('p6', 0.52)
+                elif pot_type == 3:  # Spin-orbit
+                    mapped['Vso'] = raw_pot.get('p1', 6.0)
+                    mapped['rso'] = raw_pot.get('p2', 1.2)
+                    mapped['aso'] = raw_pot.get('p3', 0.65)
+
+                return mapped
+
+            # Group by kp
+            pot_by_kp = {}
+            for raw_pot in pot_list:
+                kp = raw_pot.get('kp', 1)
+                if kp not in pot_by_kp:
+                    pot_by_kp[kp] = []
+                pot_by_kp[kp].append(_map_pot_params(raw_pot))
+
+            for step in self.step_widgets:
+                if hasattr(step, 'step_id') and step.step_id == 'potential_setup':
+                    # Clear existing potentials and repopulate
+                    for kp, pot_set_widget in step.potential_sets.items():
+                        pot_set_widget.clear_potentials()
+                        if kp in pot_by_kp:
+                            for mapped_pot in pot_by_kp[kp]:
+                                pot_type = mapped_pot.pop('type', 0)
+                                mapped_pot.pop('kp', None)
+                                pot_set_widget.add_potential_widget(pot_type, mapped_pot)
+
+                    # Add any kp groups from file that don't exist in wizard
+                    for kp in pot_by_kp:
+                        if kp not in step.potential_sets:
+                            # Create a new potential set for this kp
+                            from wizard_steps.potential_setup_step import PotentialSetWidget
+                            new_set = PotentialSetWidget(
+                                kp=kp,
+                                title=f"Potential Set kp={kp}",
+                                description=f"Loaded from file"
+                            )
+                            new_set.data_changed.connect(step.emit_data_changed)
+                            for mapped_pot in pot_by_kp[kp]:
+                                pot_type = mapped_pot.pop('type', 0)
+                                mapped_pot.pop('kp', None)
+                                new_set.add_potential_widget(pot_type, mapped_pot)
+                            step.potential_sets[kp] = new_set
+                            step.sets_container.addWidget(new_set)
+                    break
+
+        # 8. For transfer: populate overlap data
+        if detected_type == ReactionType.TRANSFER:
+            overlaps = parse_overlap_namelists(input_text)
+            if overlaps:
+                for step in self.step_widgets:
+                    if hasattr(step, 'step_id') and step.step_id == 'overlap':
+                        step.set_data({
+                            'overlaps': overlaps,
+                        })
+                        break
+
+        # Go to first step
+        self.navigator.go_to_step(0)
 
     def set_reaction_from_equation(self, equation: str):
         """

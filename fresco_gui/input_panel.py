@@ -49,8 +49,8 @@ class InputPanel(QWidget):
 
         # Back to Input Wizard button
         self.back_to_wizard_btn = QPushButton("← Back to Input Wizard")
-        self.back_to_wizard_btn.setToolTip("Switch back to the Input Wizard to modify parameters")
-        self.back_to_wizard_btn.clicked.connect(lambda: self.tabs.setCurrentIndex(0))
+        self.back_to_wizard_btn.setToolTip("Switch back to the Input Wizard and populate it with current input parameters")
+        self.back_to_wizard_btn.clicked.connect(self._back_to_wizard)
         header_layout.addWidget(self.back_to_wizard_btn)
 
         # Help button
@@ -136,6 +136,13 @@ class InputPanel(QWidget):
         self.tabs.setCurrentIndex(0)
 
         layout.addWidget(self.tabs)
+
+    def _back_to_wizard(self):
+        """Switch to wizard tab and populate it from current text editor content"""
+        input_text = self.text_edit.toPlainText()
+        if input_text.strip():
+            self.wizard.populate_from_input_text(input_text)
+        self.tabs.setCurrentIndex(0)
 
     def get_input_text(self):
         """Get the current input text"""

@@ -355,20 +355,24 @@ class ReviewStep(WizardStepWidget):
         lines.append("/")
         lines.append("")
 
-        # Potentials
+        # Potentials - use actual wizard data organized by kp
         pot_data = data.get('potential_setup', {})
         pots = pot_data.get('potentials', [])
 
-        for i, pot in enumerate(pots, 1):
-            pot_type = pot.get('type', 1)
-            lines.append("&POT")
-            lines.append(f"  kp=1 type={pot_type}")
+        # Group potentials by kp for proper display
+        pot_by_kp = {}
+        for pot in pots:
+            kp = pot.get('kp', 1)
+            if kp not in pot_by_kp:
+                pot_by_kp[kp] = []
+            pot_by_kp[kp].append(pot)
 
+        def _format_pot_line(pot, kp):
+            """Format a single potential line for preview"""
+            pot_type = pot.get('type', 1)
             if pot_type == 0:  # Coulomb
                 rc = pot.get('rc', 1.25)
-                ap = proj.get('mass_number', 1)
-                at = targ.get('mass_number', 10)
-                lines.append(f"  p1={ap} p2={at} p3={rc}")
+                return f"&POT kp={kp} type=0 rc={rc} /"
             elif pot_type == 1:  # Volume
                 v = pot.get('V', 50.0)
                 r0 = pot.get('r0', 1.17)
@@ -376,8 +380,10 @@ class ReviewStep(WizardStepWidget):
                 w = pot.get('W', 10.0)
                 rw = pot.get('rW', 1.32)
                 aw = pot.get('aW', 0.52)
-                lines.append(f"  p1={v:.2f} p2={r0:.2f} p3={a:.2f}")
-                lines.append(f"  p4={w:.2f} p5={rw:.2f} p6={aw:.2f}")
+                if w != 0.0:
+                    return f"&POT kp={kp} type=1 p1={v:.2f} p2={r0:.2f} p3={a:.2f} p4={w:.2f} p5={rw:.2f} p6={aw:.2f} /"
+                else:
+                    return f"&POT kp={kp} type=1 p1={v:.2f} p2={r0:.2f} p3={a:.2f} /"
             elif pot_type == 2:  # Surface
                 vd = pot.get('Vd', 0.0)
                 r0d = pot.get('r0d', 1.32)
@@ -385,15 +391,17 @@ class ReviewStep(WizardStepWidget):
                 wd = pot.get('Wd', 10.0)
                 rwd = pot.get('rWd', 1.32)
                 awd = pot.get('aWd', 0.52)
-                lines.append(f"  p1={vd:.2f} p2={r0d:.2f} p3={ad:.2f}")
-                lines.append(f"  p4={wd:.2f} p5={rwd:.2f} p6={awd:.2f}")
+                return f"&POT kp={kp} type=2 p1={vd:.2f} p2={r0d:.2f} p3={ad:.2f} p4={wd:.2f} p5={rwd:.2f} p6={awd:.2f} /"
             elif pot_type == 3:  # Spin-orbit
                 vso = pot.get('Vso', 6.0)
                 rso = pot.get('rso', 1.01)
                 aso = pot.get('aso', 0.75)
-                lines.append(f"  p1={vso:.2f} p2={rso:.2f} p3={aso:.2f}")
+                return f"&POT kp={kp} type=3 p1={vso:.2f} p2={rso:.2f} p3={aso:.2f} /"
+            return f"&POT kp={kp} type={pot_type} /"
 
-            lines.append("/")
+        for kp in sorted(pot_by_kp.keys()):
+            for pot in pot_by_kp[kp]:
+                lines.append(_format_pot_line(pot, kp))
             lines.append("")
 
         # Transfer-specific: exit channel partition
@@ -422,12 +430,6 @@ class ReviewStep(WizardStepWidget):
             lines.append(f"  bandt=1 et={ed.get('residual_excitation', 0.0):.3f}")
             lines.append(f"  cpot=2")
             lines.append("/")
-            lines.append("")
-
-            # Exit channel potentials (placeholder)
-            lines.append("! Exit channel potentials")
-            lines.append("&POT kp=2 type=0 p1=1 p2=1 p3=1.25 /")
-            lines.append("&POT kp=2 type=1 p1=50.0 p2=1.17 p3=0.75 p4=10.0 p5=1.32 p6=0.52 /")
             lines.append("")
 
             # Overlap
